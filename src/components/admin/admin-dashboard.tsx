@@ -506,12 +506,17 @@ const quickActions: Array<{
   description: string;
 }> = [
   { label: "Add product", target: "Products", icon: Plus, description: "Create or edit catalog items" },
+  { label: "Categories", target: "Categories", icon: Tag, description: "Control shop categories" },
   { label: "Process orders", target: "Orders", icon: PackageCheck, description: "Update status and tracking" },
   { label: "Approve custom", target: "Custom Orders", icon: Gift, description: "Price and convert custom work" },
   { label: "Stock check", target: "Inventory", icon: Warehouse, description: "Adjust quantity and reorder levels" },
+  { label: "Low stock", target: "Low Stock", icon: AlertTriangle, description: "Restock items running low" },
   { label: "Coupon builder", target: "Coupons", icon: Tag, description: "Create discounts and campaigns" },
   { label: "Support inbox", target: "Messages", icon: Inbox, description: "Reply to contact messages" },
+  { label: "Customers", target: "Customers", icon: Users, description: "Edit customer groups and notes" },
   { label: "Review queue", target: "Reviews", icon: ShieldCheck, description: "Approve customer reviews" },
+  { label: "Returns", target: "Returns", icon: Undo2, description: "Handle return requests" },
+  { label: "Analytics", target: "Analytics", icon: BarChart3, description: "Check sales and stock reports" },
   { label: "Media library", target: "Media", icon: UploadCloud, description: "Check product images and URLs" },
   { label: "Homepage content", target: "Content", icon: FileText, description: "Edit banners and site copy" },
   { label: "Store settings", target: "Settings", icon: SettingsIcon, description: "Payments, shipping, alerts" }
@@ -667,6 +672,29 @@ export function AdminDashboard() {
     );
   }
 
+  function createManualOrder() {
+    const orderId = `RB-${Date.now().toString().slice(-5)}`;
+    const nextOrder: ManagedOrder = {
+      id: orderId,
+      date: new Date().toISOString().slice(0, 10),
+      total: 0,
+      status: "Confirmed",
+      trackingId: "Not assigned",
+      items: [{ name: "Manual order item", quantity: 1 }],
+      customer: "New customer",
+      phone: "",
+      payment: "Pending",
+      channel: "Manual",
+      address: "",
+      notes: "Edit customer, total, payment and tracking."
+    };
+
+    setOrders((current) => [nextOrder, ...current]);
+    setSelectedOrderIds([orderId]);
+    recordActivity(`${orderId} manual order created`);
+    toast({ title: "Manual order created", description: "Edit the new row details." });
+  }
+
   function applyOrderBulk() {
     if (!selectedOrderIds.length) {
       toast({ kind: "info", title: "Select orders first" });
@@ -764,8 +792,27 @@ export function AdminDashboard() {
 
   function updateContentBlock(blockId: string, patch: Partial<ContentBlock>) {
     setContentBlocks((current) =>
-      current.map((block) => (block.id === blockId ? { ...block, ...patch } : block))
+      current.map((block) =>
+        block.id === blockId
+          ? { ...block, ...patch, lastEdited: new Date().toISOString().slice(0, 10) }
+          : block
+      )
     );
+  }
+
+  function addContentBlock() {
+    const nextBlock: ContentBlock = {
+      id: `CNT-${Date.now()}`,
+      area: "New site section",
+      title: "New content",
+      status: "Draft",
+      priority: contentBlocks.length + 1,
+      lastEdited: new Date().toISOString().slice(0, 10)
+    };
+
+    setContentBlocks((current) => [nextBlock, ...current]);
+    recordActivity("New content block added");
+    toast({ title: "Content block added", description: "Edit the new row." });
   }
 
   function updateSetting<K extends keyof StoreSettings>(key: K, value: StoreSettings[K]) {
@@ -904,9 +951,98 @@ export function AdminDashboard() {
       { label: "Low stock", value: String(lowStockItems.length), helper: "items at reorder level", icon: AlertTriangle },
       { label: "Custom", value: String(pendingCustom), helper: "pending approvals", icon: Gift }
     ];
+    const controlGroups: Array<{
+      title: string;
+      items: Array<{
+        label: string;
+        target: AdminModuleLabel;
+        icon: LucideIcon;
+        description: string;
+        value: string;
+      }>;
+    }> = [
+      {
+        title: "Sales",
+        items: [
+          { label: "Orders", target: "Orders", icon: PackageCheck, description: "Create orders, update payment, tracking and status.", value: `${orders.length} total` },
+          { label: "Custom Orders", target: "Custom Orders", icon: Gift, description: "Move custom work through request, quote, payment and delivery.", value: `${pendingCustom} pending` },
+          { label: "Returns", target: "Returns", icon: Undo2, description: "Approve, reject or refund return requests.", value: `${returns.length} requests` },
+          { label: "Coupons", target: "Coupons", icon: Tag, description: "Create discounts, limits, dates and campaign status.", value: `${coupons.length} coupons` }
+        ]
+      },
+      {
+        title: "Products",
+        items: [
+          { label: "Products", target: "Products", icon: Package, description: "Add products, price, stock, thumbnail, tags and publish status.", value: `${inventoryItems.length} items` },
+          { label: "Categories", target: "Categories", icon: Tag, description: "Add, sort, hide or show shop categories.", value: "Shop menu" },
+          { label: "Inventory", target: "Inventory", icon: Warehouse, description: "Adjust stock, reorder levels, locations and stock status.", value: `${lowStockItems.length} low` },
+          { label: "Media", target: "Media", icon: UploadCloud, description: "Review product images and copy image URLs.", value: "Images" }
+        ]
+      },
+      {
+        title: "Customers",
+        items: [
+          { label: "Messages", target: "Messages", icon: Inbox, description: "Read contact form messages and mark replies.", value: `${messages.filter((message) => message.status === "New").length} new` },
+          { label: "Customers", target: "Customers", icon: Users, description: "Edit groups, phone, email, spend and private notes.", value: `${customers.length} people` },
+          { label: "Reviews", target: "Reviews", icon: Star, description: "Approve, reject and calculate public product ratings.", value: `${pendingReviews} pending` }
+        ]
+      },
+      {
+        title: "Storefront",
+        items: [
+          { label: "Content", target: "Content", icon: FileText, description: "Control homepage blocks, announcement text and footer copy.", value: `${contentBlocks.length} blocks` },
+          { label: "Settings", target: "Settings", icon: SettingsIcon, description: "Contact, WhatsApp, delivery fee, COD, alerts and backup.", value: storeSettings.maintenanceMode ? "Paused" : "Live" },
+          { label: "Analytics", target: "Analytics", icon: BarChart3, description: "Check revenue, order trends and stock by category.", value: reportRange }
+        ]
+      }
+    ];
 
     return (
       <div className="grid gap-4">
+        <Panel
+          action={
+            <AdminButton onClick={() => setActive("Settings")} variant="secondary">
+              <SettingsIcon className="size-4" />
+              Store controls
+            </AdminButton>
+          }
+          title="Simple Control Center"
+        >
+          <p className="mb-4 text-sm leading-6 text-[#646970]">
+            Start here. Every important store control is grouped below, and each card opens the module where that data can be edited.
+          </p>
+          <div className="grid gap-4">
+            {controlGroups.map((group) => (
+              <div className="grid gap-2" key={group.title}>
+                <p className="text-xs font-semibold uppercase text-[#646970]">{group.title}</p>
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <button
+                        className="min-h-28 rounded border border-[#dcdcde] bg-[#f6f7f7] p-3 text-left transition hover:border-[#2271b1] hover:bg-[#f0f6fc]"
+                        key={`${group.title}-${item.label}`}
+                        onClick={() => setActive(item.target)}
+                        type="button"
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <Icon className="size-5 shrink-0 text-[#2271b1]" />
+                          <span className="rounded border border-[#c3c4c7] bg-white px-2 py-0.5 text-xs font-semibold text-[#50575e]">
+                            {item.value}
+                          </span>
+                        </span>
+                        <span className="mt-3 block text-sm font-semibold text-[#1d2327]">{item.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-[#646970]">{item.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {metrics.map((metric) => {
             const Icon = metric.icon;
@@ -1023,7 +1159,7 @@ export function AdminDashboard() {
     return (
       <Panel
         action={
-          <AdminButton onClick={() => toast({ title: "Manual order screen ready" })}>
+          <AdminButton onClick={createManualOrder}>
             <Plus className="size-4" />
             New order
           </AdminButton>
@@ -1105,8 +1241,20 @@ export function AdminDashboard() {
                   <p className="text-xs text-[#646970]">{formatDate(order.date)} | {order.channel}</p>
                 </TableCell>
                 <TableCell>
-                  <p>{order.customer}</p>
-                  <p className="text-xs text-[#646970]">{order.phone}</p>
+                  <div className="grid gap-2">
+                    <input
+                      className={inputClass}
+                      onChange={(event) => updateOrder(order.id, { customer: event.target.value })}
+                      placeholder="Customer name"
+                      value={order.customer}
+                    />
+                    <input
+                      className={inputClass}
+                      onChange={(event) => updateOrder(order.id, { phone: event.target.value })}
+                      placeholder="Phone"
+                      value={order.phone}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell>
                   <select
@@ -1124,9 +1272,26 @@ export function AdminDashboard() {
                     ))}
                   </select>
                 </TableCell>
-                <TableCell>{formatCurrency(order.total)}</TableCell>
                 <TableCell>
-                  <StatusBadge status={order.payment} />
+                  <input
+                    className={inputClass}
+                    min={0}
+                    onChange={(event) => updateOrder(order.id, { total: Number(event.target.value) || 0 })}
+                    type="number"
+                    value={order.total}
+                  />
+                  <p className="mt-1 text-xs text-[#646970]">{formatCurrency(order.total)}</p>
+                </TableCell>
+                <TableCell>
+                  <select
+                    className={inputClass}
+                    onChange={(event) => updateOrder(order.id, { payment: event.target.value as ManagedOrder["payment"] })}
+                    value={order.payment}
+                  >
+                    <option>Paid</option>
+                    <option>COD</option>
+                    <option>Pending</option>
+                  </select>
                 </TableCell>
                 <TableCell>
                   <input
@@ -2167,19 +2332,25 @@ export function AdminDashboard() {
     return (
       <Panel
         action={
-          <AdminButton
-            onClick={() => {
-              recordActivity("Content settings saved");
-              toast({ title: "Content saved" });
-            }}
-          >
-            <Save className="size-4" />
-            Save content
-          </AdminButton>
+          <>
+            <AdminButton onClick={addContentBlock} variant="secondary">
+              <Plus className="size-4" />
+              Add block
+            </AdminButton>
+            <AdminButton
+              onClick={() => {
+                recordActivity("Content settings saved");
+                toast({ title: "Content saved" });
+              }}
+            >
+              <Save className="size-4" />
+              Save content
+            </AdminButton>
+          </>
         }
         title="Content"
       >
-        <SimpleTable minWidth="840px">
+        <SimpleTable minWidth="980px">
           <thead>
             <tr>
               <TableHead>Area</TableHead>
@@ -2187,12 +2358,19 @@ export function AdminDashboard() {
               <TableHead>Priority</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Last edited</TableHead>
+              <TableHead>Controls</TableHead>
             </tr>
           </thead>
           <tbody>
             {contentBlocks.map((block) => (
               <tr key={block.id}>
-                <TableCell className="font-semibold">{block.area}</TableCell>
+                <TableCell>
+                  <input
+                    className={inputClass}
+                    onChange={(event) => updateContentBlock(block.id, { area: event.target.value })}
+                    value={block.area}
+                  />
+                </TableCell>
                 <TableCell>
                   <input
                     className={inputClass}
@@ -2220,6 +2398,18 @@ export function AdminDashboard() {
                   </select>
                 </TableCell>
                 <TableCell>{formatDate(block.lastEdited)}</TableCell>
+                <TableCell>
+                  <IconButton
+                    label="Delete content block"
+                    onClick={() => {
+                      setContentBlocks((current) => current.filter((item) => item.id !== block.id));
+                      recordActivity(`${block.area} content block deleted`);
+                    }}
+                    variant="danger"
+                  >
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                </TableCell>
               </tr>
             ))}
           </tbody>
@@ -2231,8 +2421,11 @@ export function AdminDashboard() {
   function renderSettings() {
     return (
       <div className="grid gap-4 xl:grid-cols-3">
-        <Panel title="Store settings">
+        <Panel title="Store & contact controls">
           <div className="grid gap-3">
+            <InlineNotice>
+              These fields control the contact page, WhatsApp button, delivery pricing, and store status.
+            </InlineNotice>
             <Field label="Store name">
               <input
                 className={inputClass}
@@ -2305,7 +2498,7 @@ export function AdminDashboard() {
           </div>
         </Panel>
 
-        <Panel title="Operations">
+        <Panel title="Checkout & alerts">
           <div className="grid gap-3">
             <CheckField
               checked={storeSettings.codEnabled}
@@ -2328,12 +2521,12 @@ export function AdminDashboard() {
               onChange={(checked) => updateSetting("maintenanceMode", checked)}
             />
             <InlineNotice>
-              Production wiring should save these values to a protected server route with admin-only checks.
+              Toggle what customers can use and what the admin should be alerted about.
             </InlineNotice>
           </div>
         </Panel>
 
-        <Panel title="Backup & restore">
+        <Panel title="Backup, import & reset">
           <div className="grid gap-3">
             <AdminButton onClick={exportAdminData} variant="secondary">
               <Download className="size-4" />
@@ -2358,7 +2551,7 @@ export function AdminDashboard() {
               </AdminButton>
             </div>
             <InlineNotice>
-              This admin panel now saves changes in browser storage. For multi-device admin, connect these modules to Supabase tables and protected API routes.
+              Current admin data is saved in this browser. Export JSON before reset or moving devices.
             </InlineNotice>
           </div>
         </Panel>
@@ -2443,13 +2636,13 @@ export function AdminDashboard() {
             <div className="border-b border-[#dcdcde] px-4 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[#646970]">Admin portal</p>
+                  <p className="text-xs font-semibold uppercase text-[#646970]">Simple admin controls</p>
                   <h1 className="mt-1 text-2xl font-semibold text-[#1d2327]">{active}</h1>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row xl:w-[620px]">
                   <SearchInput
                     onChange={setCommand}
-                    placeholder="Search admin actions..."
+                    placeholder="Search what you want to control..."
                     value={command}
                   />
                   <AdminButton onClick={() => setActive("Products")}>

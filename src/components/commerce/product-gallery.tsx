@@ -39,6 +39,7 @@ export function ProductGallery({
           sizes="(min-width: 1024px) 52vw, 100vw"
           src={images[active]}
           style={{ transformOrigin: origin }}
+          unoptimized
         />
         <div className="absolute right-4 top-4 flex gap-2">
           {videoUrl ? (
@@ -67,14 +68,21 @@ export function ProductGallery({
             onClick={() => setActive(index)}
             type="button"
           >
-            <Image alt={`${name} thumbnail ${index + 1}`} className="object-cover" fill sizes="120px" src={image} />
+            <Image
+              alt={`${name} thumbnail ${index + 1}`}
+              className="object-cover"
+              fill
+              sizes="120px"
+              src={image}
+              unoptimized
+            />
           </button>
         ))}
       </div>
 
       <Modal open={fullscreen} onClose={() => setFullscreen(false)} title={name} className="max-w-5xl">
         <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-brand-cream">
-          <Image alt={name} className="object-contain" fill sizes="90vw" src={images[active]} />
+          <Image alt={name} className="object-contain" fill sizes="90vw" src={images[active]} unoptimized />
         </div>
       </Modal>
     </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, type ComponentPropsWithoutRef } from "react";
+import { useEffect, useMemo, useState, type ComponentPropsWithoutRef } from "react";
 import {
   CheckCircle2,
   Copy,
   Download,
   Eye,
   EyeOff,
+  ImagePlus,
   Pencil,
   Plus,
   Save,
@@ -41,6 +42,7 @@ type EditableProduct = {
   stockStatus: string;
   description: string;
   image: string;
+  thumbnail: string;
   tags: string;
   published: boolean;
   featured: boolean;
@@ -109,6 +111,7 @@ const seededProducts: EditableProduct[] = products.map((product, index) => {
     stockStatus: product.stockStatus,
     description: product.description,
     image: product.image,
+    thumbnail: product.image,
     tags: product.tags.join(", "),
     published: true,
     featured: Boolean(product.isFeatured || product.isBestSeller),
@@ -129,6 +132,7 @@ const emptyProduct: EditableProduct = {
   stockStatus: "In stock",
   description: "",
   image: "",
+  thumbnail: "",
   tags: "",
   published: true,
   featured: false,
@@ -148,6 +152,7 @@ type StoredInventoryItem = {
   sku: string;
   name: string;
   image: string;
+  thumbnail?: string;
   category: string;
   stock: number;
   reserved: number;
@@ -233,6 +238,32 @@ export function CatalogManager({ mode = "products" }: { mode?: "products" | "cat
 
       return next;
     });
+  }
+
+  function useMainImageAsThumbnail() {
+    updateProduct("thumbnail", productDraft.image);
+    toast({ title: "Thumbnail copied from main image" });
+  }
+
+  function loadManualThumbnail(file?: File) {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast({ kind: "info", title: "Choose an image file" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateProduct("thumbnail", String(reader.result || ""));
+      toast({ title: "Thumbnail added", description: file.name });
+    };
+    reader.onerror = () => {
+      toast({ kind: "info", title: "Thumbnail could not be read" });
+    };
+    reader.readAsDataURL(file);
   }
 
   function saveProduct() {
@@ -454,7 +485,8 @@ export function CatalogManager({ mode = "products" }: { mode?: "products" | "cat
       id: product.id,
       sku: product.sku,
       name: product.name,
-      image: product.image,
+      image: product.thumbnail || product.image,
+      thumbnail: product.thumbnail,
       category: product.category,
       stock: product.stock,
       reserved: index % 3,
@@ -509,12 +541,18 @@ export function CatalogManager({ mode = "products" }: { mode?: "products" | "cat
           <Panel title={editingProductId ? "Edit Product" : "Add Product"}>
             <div className="grid gap-3">
               <div className="flex items-center gap-3 rounded border border-[#dcdcde] bg-[#f6f7f7] p-3">
-                <ProductThumbnail name={productDraft.name || "Product"} src={productDraft.image} size="lg" />
+                <ProductThumbnail
+                  name={productDraft.name || "Product"}
+                  src={productDraft.thumbnail || productDraft.image}
+                  size="lg"
+                />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#1d2327]">
                     {productDraft.name || "Product thumbnail"}
                   </p>
-                  <p className="mt-1 text-xs text-[#646970]">Preview updates from image URL.</p>
+                  <p className="mt-1 text-xs text-[#646970]">
+                    Manual thumbnail preview for shop cards and admin lists.
+                  </p>
                 </div>
               </div>
               <Field label="Product name">
@@ -618,6 +656,49 @@ export function CatalogManager({ mode = "products" }: { mode?: "products" | "cat
                   value={productDraft.image}
                 />
               </Field>
+              <div className="rounded border border-[#dcdcde] bg-[#f6f7f7] p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <Field label="Manual thumbnail URL">
+                      <input
+                        className={inputClass}
+                        onChange={(event) => updateProduct("thumbnail", event.target.value)}
+                        placeholder="Paste thumbnail URL or choose file below"
+                        value={productDraft.thumbnail}
+                      />
+                    </Field>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded border border-[#2271b1] bg-white px-3 text-sm font-medium text-[#2271b1] hover:bg-[#f0f6fc]">
+                      <ImagePlus className="size-4" />
+                      Choose file
+                      <input
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={(event) => loadManualThumbnail(event.target.files?.[0])}
+                        type="file"
+                      />
+                    </label>
+                    <AdminButton
+                      disabled={!productDraft.image}
+                      onClick={useMainImageAsThumbnail}
+                      variant="secondary"
+                    >
+                      Use main
+                    </AdminButton>
+                    <AdminButton
+                      disabled={!productDraft.thumbnail}
+                      onClick={() => updateProduct("thumbnail", "")}
+                      variant="secondary"
+                    >
+                      Clear
+                    </AdminButton>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[#646970]">
+                  Thumbnail is shown on product cards, admin lists, media previews, and mobile views.
+                </p>
+              </div>
               <Field label="Tags">
                 <input
                   className={inputClass}
@@ -748,7 +829,7 @@ export function CatalogManager({ mode = "products" }: { mode?: "products" | "cat
                         onChange={() => toggleProductSelection(product.id)}
                         type="checkbox"
                       />
-                      <ProductThumbnail name={product.name} src={product.image} size="lg" />
+                      <ProductThumbnail name={product.name} src={product.thumbnail || product.image} size="lg" />
                       <div className="min-w-0 flex-1">
                         <button
                           className="text-left font-semibold text-[#2271b1] hover:underline"
@@ -827,7 +908,7 @@ export function CatalogManager({ mode = "products" }: { mode?: "products" | "cat
                           />
                         </TableCell>
                         <TableCell>
-                          <ProductThumbnail name={product.name} src={product.image} />
+                          <ProductThumbnail name={product.name} src={product.thumbnail || product.image} />
                         </TableCell>
                         <TableCell>
                           <button
@@ -1066,6 +1147,10 @@ function ProductThumbnail({
 }) {
   const [failed, setFailed] = useState(!src);
   const dimensions = size === "lg" ? "size-16" : "size-12";
+
+  useEffect(() => {
+    setFailed(!src);
+  }, [src]);
 
   return (
     <div

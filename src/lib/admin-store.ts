@@ -24,6 +24,7 @@ type StoredAdminProduct = {
   stockStatus: string;
   description: string;
   image: string;
+  thumbnail?: string;
   tags: string;
   published: boolean;
   featured: boolean;
@@ -120,7 +121,8 @@ export function storedProductToProduct(product: StoredAdminProduct): Product {
   const tags = product.tags
     ? product.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
     : [];
-  const image = product.image || fallbackProducts[0]?.image || "";
+  const mainImage = product.image || product.thumbnail || fallbackProducts[0]?.image || "";
+  const thumbnail = product.thumbnail || mainImage;
 
   return {
     id: product.id,
@@ -133,9 +135,9 @@ export function storedProductToProduct(product: StoredAdminProduct): Product {
       ? product.compareAtPrice
       : undefined,
     currency: "INR",
-    image,
-    hoverImage: image,
-    images: [image],
+    image: thumbnail,
+    hoverImage: mainImage,
+    images: [mainImage],
     description: product.description || "Product details are managed from the admin panel.",
     details: [
       product.sku ? `SKU: ${product.sku}` : "Admin-managed product",

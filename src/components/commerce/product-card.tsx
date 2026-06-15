@@ -38,6 +38,7 @@ export function ProductCard({ product }: { product: Product }) {
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             src={product.image}
+            unoptimized
           />
           <Image
             alt={`${product.name} alternate view`}
@@ -45,6 +46,7 @@ export function ProductCard({ product }: { product: Product }) {
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             src={product.hoverImage}
+            unoptimized
           />
         </Link>
         <span className="absolute left-2 top-2 rounded-full bg-brand-gold px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-brand-green shadow-gold-soft sm:left-3 sm:top-3 sm:px-3 sm:text-[11px]">
