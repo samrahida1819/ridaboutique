@@ -9,7 +9,7 @@ export function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
       animate={{ opacity: 1, y: 0 }}
-      initial={{ opacity: 0, y: 8 }}
+      initial={false}
       key={pathname}
       transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
     >

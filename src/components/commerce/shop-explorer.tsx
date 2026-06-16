@@ -18,7 +18,6 @@ import { Drawer } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { trendingSearches } from "@/data/store";
 import { useAdminProducts } from "@/lib/admin-store";
 import { cn } from "@/lib/utils";
 import type { Product, ProductCategory, StockStatus } from "@/types/commerce";
@@ -103,7 +102,7 @@ export function ShopExplorer({
 
   const suggestions = useMemo(() => {
     if (!query.trim()) {
-      return trendingSearches;
+      return recent;
     }
 
     const normalized = query.toLowerCase();
@@ -115,7 +114,7 @@ export function ShopExplorer({
       )
       .slice(0, 6)
       .map((product) => product.name);
-  }, [catalogProducts, query]);
+  }, [catalogProducts, query, recent]);
 
   const filtered = useMemo(() => {
     const normalized = query.toLowerCase().trim();
@@ -422,28 +421,30 @@ export function ShopExplorer({
           ))}
         </div>
 
-        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
-          {suggestions.slice(0, 5).map((item) => (
-            <button
-              className="shrink-0 rounded-full bg-brand-cream px-3 py-2 text-xs font-semibold text-brand-green transition hover:bg-brand-champagne/45"
-              key={item}
-              onClick={() => applySearch(item)}
-              type="button"
-            >
-              {item}
-            </button>
-          ))}
-          {hasActiveFilters ? (
-            <button
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-green/10 px-3 py-2 text-xs font-semibold text-brand-green/65 transition hover:border-brand-gold/40 hover:text-brand-green"
-              onClick={resetFilters}
-              type="button"
-            >
-              <X className="size-3" />
-              Clear
-            </button>
-          ) : null}
-        </div>
+        {suggestions.length || hasActiveFilters ? (
+          <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+            {suggestions.slice(0, 5).map((item) => (
+              <button
+                className="shrink-0 rounded-full bg-brand-cream px-3 py-2 text-xs font-semibold text-brand-green transition hover:bg-brand-champagne/45"
+                key={item}
+                onClick={() => applySearch(item)}
+                type="button"
+              >
+                {item}
+              </button>
+            ))}
+            {hasActiveFilters ? (
+              <button
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-green/10 px-3 py-2 text-xs font-semibold text-brand-green/65 transition hover:border-brand-gold/40 hover:text-brand-green"
+                onClick={resetFilters}
+                type="button"
+              >
+                <X className="size-3" />
+                Clear
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {activeFilterChips.length ? (
           <div className="mt-3 flex flex-wrap gap-2">

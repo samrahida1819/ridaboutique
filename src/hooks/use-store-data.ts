@@ -13,6 +13,22 @@ import {
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { Banner, Category, ContactDetails, Product, StoreSettings, WebsiteContent, WebsiteContentKey } from "@/types/commerce";
 
+const DATA_LOAD_TIMEOUT_MS = 4000;
+
+function withTimeout<T>(promise: Promise<T>, label: string) {
+  let timeoutId: number;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(`${label} timed out.`));
+    }, DATA_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    window.clearTimeout(timeoutId);
+  });
+}
+
 type CatalogState = {
   products: Product[];
   categories: Category[];
@@ -45,13 +61,16 @@ export function useCatalog(activeOnly = true): CatalogState {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const [categoryResult, productResult] = await Promise.all([
-        supabase.from("categories").select("id, name, slug, description, active").order("name"),
-        supabase
-          .from("products")
-          .select("*, categories(id, name, slug)")
-          .order("created_at", { ascending: false })
-      ]);
+      const [categoryResult, productResult] = await withTimeout(
+        Promise.all([
+          supabase.from("categories").select("id, name, slug, description, active").order("name"),
+          supabase
+            .from("products")
+            .select("*, categories(id, name, slug)")
+            .order("created_at", { ascending: false })
+        ]),
+        "Catalog load"
+      );
 
       if (categoryResult.error) {
         throw categoryResult.error;
@@ -121,9 +140,12 @@ export function useBanners(activeOnly = true): BannerState {
         query = query.eq("active", true);
       }
 
-      const { data, error: queryError } = await query
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false });
+      const { data, error: queryError } = await withTimeout(
+        Promise.resolve(
+          query.order("sort_order", { ascending: true }).order("created_at", { ascending: false })
+        ),
+        "Banner load"
+      );
 
       if (queryError) {
         throw queryError;

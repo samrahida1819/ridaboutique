@@ -68,18 +68,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 0.6;
 }
 
-.luxury-container {
-  width: min(100% - 1rem, 1180px);
-  margin-inline: auto;
-}
-
+.luxury-container,
 .app-container {
-  width: min(100% - 1rem, 1180px);
+  width: min(100% - 1.25rem, 1180px);
   margin-inline: auto;
 }
 
 .section-y {
-  padding-block: 3rem;
+  padding-block: 2.5rem;
 }
 
 .editorial-rule {
@@ -97,9 +93,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   text-wrap: balance;
 }
 
-@media (max-width: 767px) {
+@media (min-width: 768px) {
   .section-y {
-    padding-block: 3rem;
+    padding-block: 4rem;
   }
 }
 

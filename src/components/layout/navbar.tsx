@@ -20,6 +20,12 @@ const navLinks = [
   { label: "Contact", href: "/contact" }
 ];
 
+const mobileShopItems = Array.from(
+  new Set(megaMenu.find((group) => group.title === "Shop")?.items || [])
+);
+
+const mobileNavLinks = [...navLinks, { label: "Wishlist", href: "/wishlist" }];
+
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -129,7 +135,7 @@ export function Navbar() {
           isTransparent ? "border-transparent bg-transparent" : "glass-green"
         )}
       >
-        <nav className="luxury-container flex h-16 items-center justify-between gap-2 md:h-[74px] md:gap-5">
+        <nav className="luxury-container flex h-14 items-center justify-between gap-2 sm:h-16 md:h-[74px] md:gap-5">
           <Link
             aria-label="Rida Boutique home"
             className={cn("shrink-0 font-serif text-xl font-semibold tracking-normal sm:text-2xl", navTone)}
@@ -160,7 +166,7 @@ export function Navbar() {
               className={cn(
                 "relative flex h-9 shrink-0 items-center rounded-full transition-all duration-300 ease-luxury sm:h-10",
                 searchOpen
-                  ? "w-[calc(100vw-6rem)] max-w-64 border border-brand-gold/30 bg-white px-0 text-brand-green shadow-luxury sm:w-56 md:w-64"
+                  ? "w-[calc(100vw-5.25rem)] max-w-60 border border-brand-gold/30 bg-white px-0 text-brand-green shadow-luxury sm:w-56 md:w-64"
                   : "w-9 text-brand-ivory hover:bg-white/10 sm:w-10"
               )}
               onSubmit={(event) => {
@@ -245,19 +251,24 @@ export function Navbar() {
             </form>
             <ThemeToggle
               className={cn(
-                "border-brand-gold/25 text-brand-ivory ring-brand-gold/25 hover:bg-white/10 hover:text-brand-gold",
-                searchOpen && "hidden sm:inline-flex"
+                "hidden border-brand-gold/25 text-brand-ivory ring-brand-gold/25 hover:bg-white/10 hover:text-brand-gold sm:inline-flex",
+                searchOpen && "sm:hidden"
               )}
               compact
             />
-            <IconLink className={searchOpen ? "hidden sm:inline-flex" : undefined} count={wishlistCount} href="/wishlist" label="Wishlist">
+            <IconLink
+              className={cn("hidden sm:inline-flex", searchOpen && "sm:hidden")}
+              count={wishlistCount}
+              href="/wishlist"
+              label="Wishlist"
+            >
               <Heart className="size-4" />
             </IconLink>
             <IconLink className={searchOpen ? "hidden sm:inline-flex" : undefined} count={cartCount} href="/cart" label="Cart">
               <ShoppingBag className="size-4" />
             </IconLink>
             <IconLink
-              className={searchOpen ? "hidden sm:inline-flex" : undefined}
+              className={cn("hidden sm:inline-flex", searchOpen && "sm:hidden")}
               href={isAuthenticated ? "/account" : "/login"}
               label={isAuthenticated ? "Profile" : "Login"}
             >
@@ -278,7 +289,7 @@ export function Navbar() {
 
       <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="right" title="Menu">
         <button
-          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-brand-gold/35 bg-brand-green px-4 py-4 text-left text-brand-ivory shadow-luxury"
+          className="mb-4 flex w-full items-center gap-3 rounded-xl border border-brand-gold/35 bg-brand-green px-4 py-4 text-left text-brand-ivory shadow-luxury"
           onClick={handleMobileAccountClick}
           type="button"
         >
@@ -298,10 +309,10 @@ export function Navbar() {
             </span>
           </span>
         </button>
-        <div className="grid gap-3">
-          {navLinks.map((link) => (
+        <div className="grid gap-2">
+          {mobileNavLinks.map((link) => (
             <Link
-              className="rounded-2xl border border-brand-green/10 px-4 py-3 font-serif text-xl text-brand-green transition hover:border-brand-gold hover:bg-brand-cream"
+              className="rounded-xl border border-brand-green/10 px-4 py-3 font-serif text-lg text-brand-green transition hover:border-brand-gold hover:bg-brand-cream sm:text-xl"
               href={link.href}
               key={link.href}
               onClick={() => setMobileOpen(false)}
@@ -310,10 +321,14 @@ export function Navbar() {
             </Link>
           ))}
         </div>
-        <div className="mt-8 rounded-3xl bg-brand-green p-5 text-brand-ivory">
-          <p className="text-xs uppercase tracking-[0.22em] text-brand-gold">Shop categories</p>
-          <div className="mt-4 grid gap-2">
-            {megaMenu.flatMap((group) => group.items).slice(0, 10).map((item) => (
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-brand-green/10 bg-white px-4 py-3 text-sm font-semibold text-brand-green">
+          <span>Theme</span>
+          <ThemeToggle compact />
+        </div>
+        <div className="mt-6 rounded-2xl bg-brand-green p-4 text-brand-ivory sm:p-5">
+          <p className="text-xs uppercase tracking-[0.22em] text-brand-gold">Browse categories</p>
+          <div className="mt-3 grid gap-1">
+            {mobileShopItems.slice(0, 6).map((item) => (
               <Link
                 className="flex items-center justify-between rounded-full px-1 py-2 text-sm text-brand-ivory/75"
                 href={`/products?query=${encodeURIComponent(item)}`}

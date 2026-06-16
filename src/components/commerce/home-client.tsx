@@ -13,7 +13,6 @@ import {
   MessageCircle,
   ShieldCheck,
   Shirt,
-  ShoppingBag,
   Sparkles,
   Truck
 } from "lucide-react";
@@ -48,31 +47,80 @@ const customSteps = [
   ["Checkout", "Approved products can be ordered through the store."]
 ];
 
+function uniqueProducts(productList: Product[]) {
+  const seen = new Set<string>();
+
+  return productList.filter((product) => {
+    if (seen.has(product.id)) {
+      return false;
+    }
+
+    seen.add(product.id);
+    return true;
+  });
+}
+
+function isCustomProduct(product: Product) {
+  return product.collection === "custom-creations" || product.category === "custom-gifts";
+}
+
+function takeUniqueProducts(candidates: Product[], usedProductIds: Set<string>, limit = 4) {
+  const selected: Product[] = [];
+
+  for (const product of candidates) {
+    if (selected.length >= limit) {
+      break;
+    }
+
+    if (!usedProductIds.has(product.id)) {
+      selected.push(product);
+      usedProductIds.add(product.id);
+    }
+  }
+
+  return selected;
+}
+
 export function HomeClient() {
   const { products } = useCatalog(true);
   const { banners } = useBanners(true);
-  const newArrivals = products.filter((product) => product.isNew || product.isFeatured).slice(0, 4);
-  const bestSellers = products.filter((product) => product.isBestSeller || product.isFeatured).slice(0, 4);
-  const customCreations = products.filter((product) => product.collection === "custom-creations" || product.category === "custom-gifts").slice(0, 4);
-  const heroProduct = newArrivals[0] || products[0];
+  const catalogProducts = uniqueProducts(products.filter((product) => product.isActive !== false));
+  const heroProduct =
+    catalogProducts.find((product) => product.isNew || product.isFeatured) || catalogProducts[0];
+  const usedProductIds = new Set<string>(heroProduct ? [heroProduct.id] : []);
+  const newArrivals = takeUniqueProducts(
+    catalogProducts.filter(
+      (product) =>
+        !isCustomProduct(product) &&
+        (product.isNew || product.collection === "new-arrivals" || product.isFeatured)
+    ),
+    usedProductIds
+  );
+  const bestSellers = takeUniqueProducts(
+    catalogProducts.filter(
+      (product) => product.isBestSeller || product.collection === "best-sellers"
+    ),
+    usedProductIds
+  );
+  const customCreations = takeUniqueProducts(catalogProducts.filter(isCustomProduct), usedProductIds);
   const marketingBanner = banners[0];
 
   return (
     <main className="bg-brand-ivory">
-      <section className="bg-brand-green pb-5 pt-28 text-brand-ivory md:pb-8 md:pt-36">
-        <div className="luxury-container grid gap-5 lg:grid-cols-[1fr_420px] lg:items-center">
+      <section className="bg-brand-green pb-6 pt-24 text-brand-ivory sm:pt-28 md:pb-8 md:pt-36">
+        <div className="luxury-container grid gap-6 lg:grid-cols-[1fr_420px] lg:items-center">
           <Reveal>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-gold sm:text-xs">
               Rida Boutique
             </p>
-            <h1 className="mt-3 max-w-3xl font-serif text-4xl leading-none sm:text-5xl md:text-7xl">
+            <h1 className="mt-3 max-w-[22rem] font-serif text-3xl leading-[0.98] sm:max-w-3xl sm:text-5xl md:text-7xl">
               Shop luxury fashion, gifts and custom pieces.
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-brand-ivory/75 sm:text-base sm:leading-7">
+            <p className="mt-4 max-w-[21rem] text-sm leading-6 text-brand-ivory/75 sm:max-w-2xl sm:text-base sm:leading-7">
               Direct checkout for women&apos;s fashion, hijabs, earrings, frames, cash bouquets,
               accessories and made-to-order gifts.
             </p>
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:flex">
+            <div className="mt-6 grid gap-3 sm:flex">
               <ButtonLink className="w-full sm:w-auto" href="/products" size="lg" variant="gold">
                 Shop Now
               </ButtonLink>
@@ -80,26 +128,15 @@ export function HomeClient() {
                 Custom Order
               </ButtonLink>
             </div>
-            <div className="mt-6 grid grid-cols-2 gap-3 text-xs sm:max-w-lg sm:grid-cols-3">
-              {["New arrivals", "Best sellers", "Custom gifts"].map((item) => (
-                <Link
-                  className="rounded-2xl border border-brand-gold/25 bg-white/10 px-3 py-3 font-semibold text-brand-ivory transition hover:bg-brand-gold hover:text-brand-green"
-                  href={`/products?query=${encodeURIComponent(item)}`}
-                  key={item}
-                >
-                  {item}
-                </Link>
-              ))}
-            </div>
           </Reveal>
 
           {heroProduct ? (
             <Reveal delay={0.08}>
               <Link
-                className="group grid grid-cols-[104px_1fr] gap-4 rounded-2xl border border-brand-gold/25 bg-white/10 p-3 backdrop-blur transition hover:bg-white/15 sm:grid-cols-[140px_1fr] lg:block lg:p-4"
+                className="group grid grid-cols-[92px_1fr] gap-3 rounded-xl border border-brand-gold/25 bg-white/10 p-2.5 backdrop-blur transition hover:bg-white/15 sm:grid-cols-[132px_1fr] sm:gap-4 sm:p-3 lg:block lg:p-4"
                 href={`/products/${heroProduct.slug}`}
               >
-                <div className="relative aspect-square overflow-hidden rounded-xl bg-brand-cream lg:aspect-square">
+                <div className="relative aspect-square overflow-hidden rounded-lg bg-brand-cream sm:rounded-xl lg:aspect-square">
                   <Image
                     alt={heroProduct.name}
                     className="object-cover transition duration-700 group-hover:scale-105"
@@ -129,13 +166,13 @@ export function HomeClient() {
         </div>
       </section>
 
-      <section className="border-b border-brand-green/10 bg-white py-3">
+      <section className="border-b border-brand-green/10 bg-white py-2.5 sm:py-3">
         <div className="luxury-container no-scrollbar flex gap-2 overflow-x-auto sm:grid sm:grid-cols-4">
           {trustItems.map((item) => {
             const Icon = item.icon;
             return (
               <div
-                className="flex min-w-[164px] items-center gap-2 rounded-xl bg-brand-cream px-3 py-3 text-xs font-bold text-brand-green sm:min-w-0 sm:text-sm"
+                className="flex min-w-[150px] items-center gap-2 rounded-lg bg-brand-cream px-3 py-2.5 text-xs font-bold text-brand-green sm:min-w-0 sm:rounded-xl sm:py-3 sm:text-sm"
                 key={item.label}
               >
                 <Icon className="size-4 shrink-0 text-brand-gold" />
@@ -148,7 +185,7 @@ export function HomeClient() {
 
       {marketingBanner ? <MarketingBanner banner={marketingBanner} /> : null}
 
-      <section className="py-8 md:py-12">
+      <section className="py-6 md:py-12">
         <div className="luxury-container">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -167,17 +204,17 @@ export function HomeClient() {
             </Link>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-3 md:grid-cols-3 lg:grid-cols-6">
             {categories.map((category) => {
               const Icon = category.icon;
               return (
                 <Link
-                  className="rounded-2xl border border-brand-green/10 bg-white p-4 shadow-[0_1px_0_rgba(6,40,31,0.08)] transition hover:-translate-y-1 hover:border-brand-gold hover:shadow-luxury"
+                  className="rounded-xl border border-brand-green/10 bg-white p-3 shadow-[0_1px_0_rgba(6,40,31,0.08)] transition hover:-translate-y-1 hover:border-brand-gold hover:shadow-luxury sm:rounded-2xl sm:p-4"
                   href={category.href}
                   key={category.label}
                 >
                   <Icon className="size-5 text-brand-gold" />
-                  <p className="mt-4 font-serif text-2xl leading-none text-brand-green">
+                  <p className="mt-3 font-serif text-xl leading-none text-brand-green sm:mt-4 sm:text-2xl">
                     {category.label}
                   </p>
                   <p className="mt-2 text-xs leading-5 text-brand-charcoal/55">{category.count}</p>
@@ -188,47 +225,12 @@ export function HomeClient() {
         </div>
       </section>
 
-      <section className="pb-8 md:pb-12">
-        <div className="luxury-container grid gap-3 md:grid-cols-2">
-          <Link
-            className="group rounded-2xl bg-brand-green p-5 text-brand-ivory shadow-luxury transition hover:-translate-y-1"
-            href="/custom-orders"
-          >
-            <Gift className="size-6 text-brand-gold" />
-            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold">
-              Custom orders
-            </p>
-            <h2 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">
-              Frames, earrings, bouquets and gifts made to brief.
-            </h2>
-            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">
-              Request now <ArrowRight className="size-4 transition group-hover:translate-x-1" />
-            </span>
-          </Link>
-          <Link
-            className="group rounded-2xl border border-brand-green/10 bg-white p-5 text-brand-green shadow-luxury transition hover:-translate-y-1"
-            href="/products?sort=popularity"
-          >
-            <ShoppingBag className="size-6 text-brand-gold" />
-            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold">
-              Ready to ship
-            </p>
-            <h2 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">
-              Browse available pieces with clear pricing and checkout.
-            </h2>
-            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">
-              Shop best sellers <ArrowRight className="size-4 transition group-hover:translate-x-1" />
-            </span>
-          </Link>
-        </div>
-      </section>
-
       <ProductSection eyebrow="New Arrivals" href="/products?sort=newest" products={newArrivals} title="Fresh in store." />
       <ProductSection eyebrow="Best Sellers" href="/products?sort=popularity" products={bestSellers} title="Customer favourites." tone="white" />
 
-      <section className="py-8 md:py-12">
+      <section className="py-6 md:py-12">
         <div className="luxury-container">
-          <div className="rounded-2xl bg-brand-green p-5 text-brand-ivory md:p-7">
+          <div className="rounded-xl bg-brand-green p-4 text-brand-ivory sm:rounded-2xl sm:p-5 md:p-7">
             <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-gold">
@@ -240,7 +242,7 @@ export function HomeClient() {
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 {customSteps.map(([title, text], index) => (
-                  <div className="rounded-2xl border border-brand-gold/25 p-4" key={title}>
+                  <div className="rounded-xl border border-brand-gold/25 p-4 sm:rounded-2xl" key={title}>
                     <span className="grid size-8 place-items-center rounded-full bg-brand-gold text-sm font-bold text-brand-green">
                       {index + 1}
                     </span>
@@ -256,7 +258,7 @@ export function HomeClient() {
 
       <ProductSection eyebrow="Custom Creations" href="/custom-orders" products={customCreations} title="Made for your occasion." />
 
-      <section className="bg-white py-8 md:py-12">
+      <section className="bg-white py-6 md:py-12">
         <div className="luxury-container">
           <SectionHeading
             description="Short, real purchase confidence before checkout."
@@ -273,8 +275,8 @@ export function HomeClient() {
         </div>
       </section>
 
-      <section className="py-8 md:py-12">
-        <div className="luxury-container rounded-2xl border border-brand-green/10 bg-white p-5 shadow-luxury md:p-7">
+      <section className="py-6 md:py-12">
+        <div className="luxury-container rounded-xl border border-brand-green/10 bg-white p-4 shadow-luxury sm:rounded-2xl sm:p-5 md:p-7">
           <div className="grid gap-5 md:grid-cols-[1fr_0.9fr] md:items-center">
             <div>
               <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold">
@@ -313,21 +315,21 @@ function MarketingBanner({ banner }: { banner: Banner }) {
   const href = banner.linkUrl?.trim() || "/custom-orders";
 
   return (
-    <section className="bg-brand-ivory py-6 md:py-8">
+    <section className="bg-brand-ivory py-4 md:py-8">
       <div className="luxury-container">
         <Link
-          className="group grid overflow-hidden rounded-2xl border border-brand-green/10 bg-white text-brand-green shadow-luxury transition hover:-translate-y-1 hover:border-brand-gold md:grid-cols-[1fr_360px] lg:grid-cols-[1fr_430px]"
+          className="group grid overflow-hidden rounded-xl border border-brand-green/10 bg-white text-brand-green shadow-luxury transition hover:-translate-y-1 hover:border-brand-gold sm:rounded-2xl md:grid-cols-[1fr_360px] lg:grid-cols-[1fr_430px]"
           href={href}
         >
-          <div className="flex min-w-0 flex-col justify-center p-5 sm:p-7 lg:p-9">
+          <div className="flex min-w-0 flex-col justify-center p-4 sm:p-7 lg:p-9">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-gold">
               Custom order spotlight
             </p>
-            <h2 className="mt-3 max-w-2xl font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
+            <h2 className="mt-3 max-w-[21rem] font-serif text-2xl leading-tight sm:max-w-2xl sm:text-4xl md:text-5xl">
               {banner.title}
             </h2>
             {banner.subtitle ? (
-              <p className="mt-4 max-w-xl text-sm leading-6 text-brand-charcoal/65 sm:text-base sm:leading-7">
+              <p className="mt-4 max-w-[21rem] text-sm leading-6 text-brand-charcoal/65 sm:max-w-xl sm:text-base sm:leading-7">
                 {banner.subtitle}
               </p>
             ) : null}
@@ -335,7 +337,7 @@ function MarketingBanner({ banner }: { banner: Banner }) {
               Explore now <ArrowRight className="size-4 transition group-hover:translate-x-1" />
             </span>
           </div>
-          <div className="relative min-h-[220px] bg-brand-cream md:min-h-[320px]">
+          <div className="relative min-h-[180px] bg-brand-cream sm:min-h-[220px] md:min-h-[320px]">
             {banner.imageUrl ? (
               <Image
                 alt={banner.title}
@@ -369,8 +371,12 @@ function ProductSection({
   title: string;
   tone?: "ivory" | "white";
 }) {
+  if (!products.length) {
+    return null;
+  }
+
   return (
-    <section className={tone === "white" ? "bg-white py-8 md:py-12" : "py-8 md:py-12"}>
+    <section className={tone === "white" ? "bg-white py-6 md:py-12" : "py-6 md:py-12"}>
       <div className="luxury-container">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -380,13 +386,13 @@ function ProductSection({
             <h2 className="mt-2 font-serif text-3xl text-brand-green sm:text-4xl">{title}</h2>
           </div>
           <Link
-            className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-brand-green transition hover:text-brand-gold"
+            className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-brand-green transition hover:text-brand-gold sm:inline-flex"
             href={href}
           >
             View all <ArrowRight className="size-4" />
           </Link>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-5 lg:grid-cols-4">
           {products.map((product, index) => (
             <Reveal delay={index * 0.05} key={product.id}>
               <ProductCard product={product} />

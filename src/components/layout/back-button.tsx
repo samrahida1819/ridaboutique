@@ -23,7 +23,7 @@ export function BackButton() {
   return (
     <button
       aria-label="Go back"
-      className="fixed left-3 top-[108px] z-40 grid size-11 place-items-center rounded-full border border-brand-gold/35 bg-white/92 text-brand-green shadow-luxury backdrop-blur transition hover:bg-brand-gold hover:text-brand-green md:left-6 md:top-[118px]"
+      className="fixed left-6 top-[118px] z-40 hidden size-11 place-items-center rounded-full border border-brand-gold/35 bg-white/92 text-brand-green shadow-luxury backdrop-blur transition hover:bg-brand-gold hover:text-brand-green md:grid"
       onClick={goBack}
       type="button"
     >

@@ -37,7 +37,7 @@ export function ProductCard({ product }: { product: Product }) {
             alt={product.name}
             className="object-cover transition duration-700 group-hover:scale-105 group-hover:opacity-0"
             fill
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 50vw"
             src={product.image}
             unoptimized
           />
@@ -45,7 +45,7 @@ export function ProductCard({ product }: { product: Product }) {
             alt={`${product.name} alternate view`}
             className="object-cover opacity-0 transition duration-700 group-hover:scale-105 group-hover:opacity-100"
             fill
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 50vw"
             src={product.hoverImage}
             unoptimized
           />
@@ -72,7 +72,7 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
       <div className="px-1 pb-1 pt-2.5 sm:pt-3">
         <Link className="block" href={`/products/${product.slug}`}>
-          <h3 className="line-clamp-2 min-h-[2.35rem] font-serif text-[15px] leading-tight text-brand-green transition group-hover:text-brand-gold sm:min-h-[2.9rem] sm:text-xl">
+          <h3 className="line-clamp-2 min-h-[2.25rem] font-serif text-sm leading-tight text-brand-green transition group-hover:text-brand-gold sm:min-h-[2.9rem] sm:text-xl">
             {product.name}
           </h3>
           <div className="mt-1.5 flex items-center gap-1 text-[11px] text-brand-charcoal/55">
@@ -93,7 +93,7 @@ export function ProductCard({ product }: { product: Product }) {
         </Link>
         <Button
           aria-label={soldOut ? `${product.name} is sold out` : `Add ${product.name} to cart`}
-          className="mt-3 h-9 w-full rounded-full text-[11px] sm:h-10 sm:text-xs"
+          className="mt-3 h-9 w-full rounded-full px-3 text-[11px] sm:h-10 sm:text-xs"
           disabled={soldOut}
           onClick={() => {
             if (addToCart(product)) {
