@@ -1,12 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { useContactDetails } from "@/hooks/use-store-data";
 
 const footerLinks = [
   {
     title: "Boutique",
     links: [
-      { label: "Shop", href: "/shop" },
+      { label: "Products", href: "/products" },
       { label: "Custom Orders", href: "/custom-orders" },
       { label: "Wishlist", href: "/wishlist" }
     ]
@@ -16,36 +19,38 @@ const footerLinks = [
     links: [
       { label: "Contact", href: "/contact" },
       { label: "Orders", href: "/orders" },
-      { label: "Returns & Refunds", href: "/returns-refunds" },
+      { label: "Return Policy", href: "/return-policy" },
       { label: "Account", href: "/account" }
     ]
   }
 ];
 
-const contactItems = [
-  {
-    label: "Kashmir only",
-    href: "/contact",
-    icon: MapPin
-  },
-  {
-    label: "care@ridaboutique.in",
-    href: "mailto:care@ridaboutique.in",
-    icon: Mail
-  },
-  {
-    label: "+91 70000 00000",
-    href: "tel:+917000000000",
-    icon: Phone
-  },
-  {
-    label: "WhatsApp order support",
-    href: "https://wa.me/917000000000",
-    icon: MessageCircle
-  }
-];
-
 export function Footer() {
+  const { contactDetails } = useContactDetails();
+  const whatsappDigits = contactDetails.whatsappNumber.replace(/\D/g, "");
+  const contactItems = [
+    {
+      label: contactDetails.businessAddress,
+      href: contactDetails.googleMapsLink || "/contact",
+      icon: MapPin
+    },
+    {
+      label: contactDetails.email,
+      href: `mailto:${contactDetails.email}`,
+      icon: Mail
+    },
+    {
+      label: contactDetails.primaryPhone,
+      href: `tel:${contactDetails.primaryPhone.replace(/\s/g, "")}`,
+      icon: Phone
+    },
+    {
+      label: "WhatsApp order support",
+      href: `https://wa.me/${whatsappDigits}`,
+      icon: MessageCircle
+    }
+  ];
+
   return (
     <footer className="bg-brand-green text-brand-ivory">
       <div className="luxury-container py-8 sm:py-10 lg:py-12">
@@ -55,14 +60,14 @@ export function Footer() {
               Rida Boutique
             </p>
             <h2 className="mt-3 font-serif text-2xl leading-tight sm:text-3xl lg:text-4xl">
-              Modern luxury, delivered across Kashmir.
+              Modern luxury, delivered with boutique care.
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-7 text-brand-ivory/70 sm:text-[15px]">
               Women&apos;s fashion, custom earrings, personalized frames, cash bouquets, hijabs, and
               made-to-order gifts crafted with calm precision.
             </p>
             <div className="mt-6 grid gap-3 sm:max-w-lg sm:grid-cols-2">
-              <ButtonLink href="/shop" variant="gold" className="w-full justify-center">
+              <ButtonLink href="/products" variant="gold" className="w-full justify-center">
                 Shop the Boutique
               </ButtonLink>
               <ButtonLink
@@ -121,7 +126,7 @@ export function Footer() {
 
         <div className="mt-7 flex flex-col gap-2 border-t border-brand-gold/15 pt-5 text-xs leading-6 text-brand-ivory/52 md:flex-row md:items-center md:justify-between">
           <p>&copy; 2026 Rida Boutique. All rights reserved.</p>
-          <p>Secure checkout, verified support, and made-to-order gifting.</p>
+          <p>Secure login, COD checkout, and made-to-order gifting.</p>
         </div>
       </div>
     </footer>

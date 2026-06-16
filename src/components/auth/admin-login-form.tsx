@@ -1,0 +1,165 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { LayoutDashboard, LockKeyhole } from "lucide-react";
+import { useAuth } from "@/components/providers/auth-provider";
+import { ThemeToggle } from "@/components/providers/theme-provider";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/input";
+
+export function AdminLoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { authReady, refreshProfile, signIn, signOut, testingLogin, user } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const nextPath = useMemo(() => {
+    const next = searchParams.get("next") || "/admin";
+    return next.startsWith("/admin") && next !== "/admin/login" ? next : "/admin";
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!authReady || !user) {
+      return;
+    }
+
+    if (user.role === "admin") {
+      router.replace(nextPath);
+      return;
+    }
+
+    setError("This email is signed in, but it is not marked as admin.");
+  }, [authReady, nextPath, router, user]);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setSubmitting(true);
+
+    const result = await signIn(email, password);
+    await refreshProfile();
+    setSubmitting(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setMessage("Login successful. Checking admin access...");
+  }
+
+  async function continueWithTestingAdmin() {
+    setError("");
+    setMessage("");
+    await testingLogin("admin");
+    router.replace(nextPath);
+  }
+
+  return (
+    <main className="min-h-screen bg-stone-100 text-neutral-950 dark:bg-neutral-950 dark:text-stone-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-10">
+        <div className="mb-5 flex items-center justify-between">
+          <Link className="text-sm font-semibold" href="/">
+            Rida Boutique
+          </Link>
+          <ThemeToggle compact />
+        </div>
+
+        <div className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="flex items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-md bg-neutral-950 text-white dark:bg-white dark:text-neutral-950">
+              <LayoutDashboard className="size-5" />
+            </span>
+            <div>
+              <h1 className="text-2xl font-semibold">Admin Login</h1>
+              <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
+                Separate access for dashboard users.
+              </p>
+            </div>
+          </div>
+
+          {user && user.role !== "admin" ? (
+            <div className="mt-6 rounded-md border border-stone-200 bg-stone-100 p-4 dark:border-neutral-800 dark:bg-neutral-950">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <LockKeyhole className="size-4" />
+                Admin access required
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600 dark:text-stone-300">
+                Signed in as {user.email}. Promote this profile to admin, or logout and use an admin account.
+              </p>
+              <Button className="mt-4" onClick={() => void signOut()} variant="outline">
+                Logout
+              </Button>
+              <Button className="mt-3 w-full" onClick={() => void continueWithTestingAdmin()}>
+                Continue with testing admin
+              </Button>
+            </div>
+          ) : (
+            <form className="mt-6 grid gap-4" onSubmit={submit}>
+              <Field label="Admin email">
+                <Input
+                  autoComplete="email"
+                  autoFocus
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Password">
+                <Input
+                  autoComplete="current-password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+              </Field>
+              {error ? (
+                <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
+                  {error}
+                </p>
+              ) : null}
+              {message ? (
+                <p className="rounded-md bg-stone-100 p-3 text-sm text-stone-700 dark:bg-neutral-950 dark:text-stone-200">
+                  {message}
+                </p>
+              ) : null}
+              <Button disabled={submitting} type="submit">
+                {submitting ? "Signing in..." : "Login to dashboard"}
+              </Button>
+            </form>
+          )}
+
+          {!(user && user.role !== "admin") ? (
+            <div className="mt-4 rounded-md border border-stone-200 bg-stone-100 p-4 dark:border-neutral-800 dark:bg-neutral-950">
+              <p className="text-sm font-semibold">Testing login</p>
+              <p className="mt-1 text-xs leading-5 text-stone-600 dark:text-stone-300">
+                Opens a local admin session for dashboard testing.
+              </p>
+              <Button className="mt-3 w-full" onClick={() => void continueWithTestingAdmin()} variant="secondary">
+                Continue with testing admin
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <Link className="text-stone-600 hover:underline dark:text-stone-300" href="/login">
+              Customer login
+            </Link>
+            <ButtonLink href="/admin" size="sm" variant="secondary">
+              Dashboard
+            </ButtonLink>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

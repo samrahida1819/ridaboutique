@@ -3,133 +3,97 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import { Button, ButtonLink } from "@/components/ui/button";
-import { AuthLoading, LoginRequired, useAuth } from "@/components/providers/auth-provider";
+import { LoginRequired } from "@/components/providers/auth-provider";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useShop } from "@/components/providers/shop-provider";
-import { useToast } from "@/components/providers/toast-provider";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 
 export function CartClient() {
   const { authReady, isAuthenticated } = useAuth();
-  const { cart, subtotal, removeFromCart, updateQuantity } = useShop();
-  const { toast } = useToast();
-  const shipping = subtotal > 4999 || subtotal === 0 ? 0 : 180;
-  const total = subtotal + shipping;
+  const { cart, cartCount, removeFromCart, subtotal, updateQuantity } = useShop();
 
   if (!authReady) {
-    return <AuthLoading title="Checking your cart" />;
+    return <div className="app-container pb-12 pt-32 md:pt-40">Loading cart...</div>;
   }
 
   if (!isAuthenticated) {
     return (
-      <LoginRequired
-        description="Sign in with WhatsApp to add items, view your cart, and continue checkout."
-        title="Sign in to view your cart"
-      />
+      <div className="app-container pb-12 pt-32 md:pt-40">
+        <LoginRequired description="Sign in with email and password to view your cart and continue checkout." title="Your cart is private" />
+      </div>
     );
   }
 
   if (!cart.length) {
     return (
-      <div className="rounded-2xl border border-brand-green/10 bg-white p-8 text-center shadow-luxury sm:rounded-[1.75rem] sm:p-12">
-        <ShoppingBag className="mx-auto size-10 text-brand-gold" />
-        <h1 className="mt-5 font-serif text-3xl text-brand-green sm:text-5xl">Your cart is quiet.</h1>
-        <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-brand-charcoal/60">
-          Add fashion, hijabs, accessories, or custom-ready pieces to begin a premium checkout.
-        </p>
-        <div className="mt-8 flex justify-center">
-          <ButtonLink href="/shop">Shop Now</ButtonLink>
+      <div className="app-container pb-12 pt-32 md:pt-40">
+        <div className="rounded-lg border border-stone-200 bg-white p-10 text-center dark:border-neutral-800 dark:bg-neutral-950">
+          <ShoppingBag className="mx-auto size-10" />
+          <h1 className="mt-4 text-2xl font-semibold">Your cart is empty</h1>
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">Add products to cart before checkout.</p>
+          <ButtonLink className="mt-6" href="/products">
+            Shop products
+          </ButtonLink>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:gap-8">
-      <div className="grid gap-4">
-        {cart.map((item) => (
-          <article className="grid grid-cols-[92px_1fr] gap-3 rounded-2xl border border-brand-green/10 bg-white p-3 shadow-[0_1px_0_rgba(6,40,31,0.08)] sm:grid-cols-[132px_1fr] sm:gap-4 sm:p-4" key={`${item.product.id}-${item.variant || "default"}`}>
-            <Link className="relative aspect-square overflow-hidden rounded-2xl bg-brand-cream" href={`/product/${item.product.slug}`}>
-              <Image alt={item.product.name} className="object-cover" fill sizes="160px" src={item.product.image} />
-            </Link>
-            <div className="flex flex-col justify-between gap-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <Link className="font-serif text-xl text-brand-green transition hover:text-brand-gold sm:text-3xl" href={`/product/${item.product.slug}`}>
-                    {item.product.name}
-                  </Link>
-                  {item.variant ? <p className="mt-1 text-xs text-brand-charcoal/55">{item.variant}</p> : null}
-                  <p className="mt-2 text-sm font-semibold text-brand-charcoal">{formatCurrency(item.product.price)}</p>
-                </div>
-                <Button
-                  aria-label={`Remove ${item.product.name}`}
-                  onClick={() => {
-                    removeFromCart(item.product.id);
-                    toast({ title: "Removed from cart", description: item.product.name });
-                  }}
-                  size="icon"
-                  variant="secondary"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+    <section className="app-container pb-12 pt-32 md:pt-40">
+      <h1 className="text-3xl font-semibold tracking-tight">Cart</h1>
+      <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">{cartCount} item{cartCount === 1 ? "" : "s"} ready for checkout.</p>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-4">
+          {cart.map((item) => (
+            <article className="grid gap-4 rounded-lg border border-stone-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950 sm:grid-cols-[110px_1fr_auto]" key={`${item.product.id}-${item.variant || "default"}`}>
+              <div className="relative aspect-square overflow-hidden rounded-md bg-stone-100 dark:bg-neutral-900">
+                <Image alt={item.product.name} className="object-cover" fill sizes="110px" src={item.product.image} />
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="inline-flex h-11 items-center rounded-full border border-brand-green/15 bg-brand-ivory">
-                  <Button
-                    aria-label="Decrease quantity"
-                    className="text-brand-green"
-                    onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                    size="icon"
-                    variant="ghost"
-                  >
+              <div>
+                <Link className="font-medium hover:underline" href={`/products/${item.product.slug}`}>
+                  {item.product.name}
+                </Link>
+                <p className="mt-1 text-sm text-stone-500">{item.variant || item.product.categoryName || item.product.category}</p>
+                <p className="mt-3 font-semibold">{formatCurrency(item.product.salePrice || item.product.price)}</p>
+              </div>
+              <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:justify-between">
+                <div className="flex items-center rounded-md border border-stone-200 dark:border-neutral-800">
+                  <Button aria-label="Decrease quantity" onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.variant)} size="icon" variant="ghost">
                     <Minus className="size-4" />
                   </Button>
-                  <span className="grid w-10 place-items-center text-sm font-semibold">{item.quantity}</span>
-                  <Button
-                    aria-label="Increase quantity"
-                    className="text-brand-green"
-                    onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                    size="icon"
-                    variant="ghost"
-                  >
+                  <span className="w-10 text-center text-sm">{item.quantity}</span>
+                  <Button aria-label="Increase quantity" onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.variant)} size="icon" variant="ghost">
                     <Plus className="size-4" />
                   </Button>
                 </div>
-                <p className="text-sm font-semibold text-brand-green">
-                  {formatCurrency(item.product.price * item.quantity)}
-                </p>
+                <Button aria-label="Remove item" onClick={() => removeFromCart(item.product.id, item.variant)} size="icon" variant="ghost">
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
+            </article>
+          ))}
+        </div>
+
+        <aside className="h-fit rounded-lg border border-stone-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
+          <h2 className="text-lg font-semibold">Order summary</h2>
+          <div className="mt-4 grid gap-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-stone-500">Subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
-          </article>
-        ))}
+            <div className="flex justify-between">
+              <span className="text-stone-500">Delivery</span>
+              <span>Calculated at checkout</span>
+            </div>
+          </div>
+          <ButtonLink className="mt-6 w-full" href="/checkout">
+            Checkout
+          </ButtonLink>
+        </aside>
       </div>
-
-      <aside className="h-fit rounded-2xl border border-brand-green/10 bg-white p-4 shadow-luxury sm:rounded-[1.75rem] sm:p-6 lg:sticky lg:top-32">
-        <p className="font-serif text-4xl text-brand-green">Order Summary</p>
-        <div className="mt-6 grid gap-3 text-sm">
-          <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
-          <SummaryRow label="Courier delivery" value={shipping ? formatCurrency(shipping) : "Free"} />
-          <SummaryRow label="Kashmir delivery" value="Supported" />
-        </div>
-        <div className="mt-6 border-t border-brand-green/10 pt-6">
-          <SummaryRow label="Total" value={formatCurrency(total)} strong />
-        </div>
-        <ButtonLink className="mt-6 w-full" href="/checkout" size="lg">
-          Proceed to Checkout
-        </ButtonLink>
-        <p className="mt-4 text-xs leading-5 text-brand-charcoal/55">
-          Razorpay supports UPI, cards, net banking, and wallets. Custom orders are paid after admin approval.
-        </p>
-      </aside>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className={strong ? "flex items-center justify-between text-lg font-semibold text-brand-green" : "flex items-center justify-between text-brand-charcoal/65"}>
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
+    </section>
   );
 }

@@ -2,22 +2,34 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode
 } from "react";
-import { LockKeyhole, MessageCircle, UserRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
-import { Select } from "@/components/ui/select";
+import type { User } from "@supabase/supabase-js";
+import { LockKeyhole, Mail, UserRound } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
+import type { ProfileRole } from "@/types/commerce";
 
-type AuthUser = {
+export type AuthUser = {
   id: string;
+  email: string;
   name: string;
-  phone: string;
+  phone?: string;
+  address?: string;
+  role: ProfileRole;
+};
+
+type SignUpInput = {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
 };
 
 type AuthContextValue = {
@@ -25,219 +37,293 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   authReady: boolean;
   requestLogin: (reason?: string) => boolean;
+  testingLogin: (role?: ProfileRole) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (input: SignUpInput) => Promise<{ error?: string; message?: string }>;
+  resetPassword: (email: string) => Promise<{ error?: string; message?: string }>;
+  updateProfile: (profile: { fullName?: string; phone?: string; address?: string }) => Promise<{ error?: string }>;
+  refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
-type AuthStep = "phone" | "otp";
-
-const countryCodes = [
-  { label: "India", value: "+91" },
-  { label: "Pakistan", value: "+92" },
-  { label: "UAE", value: "+971" },
-  { label: "Saudi Arabia", value: "+966" },
-  { label: "United States", value: "+1" },
-  { label: "United Kingdom", value: "+44" }
-];
-
 const AuthContext = createContext<AuthContextValue | null>(null);
+const TESTING_USER_KEY = "rida-testing-user";
+
+function profileFromUser(user: User, role: ProfileRole = "customer"): AuthUser {
+  return {
+    id: user.id,
+    email: user.email || "",
+    name:
+      typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name
+        ? user.user_metadata.full_name
+        : user.email?.split("@")[0] || "Customer",
+    phone: typeof user.user_metadata?.phone === "string" ? user.user_metadata.phone : undefined,
+    address: typeof user.user_metadata?.address === "string" ? user.user_metadata.address : undefined,
+    role
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [loginReason, setLoginReason] = useState("Sign in to continue.");
-  const [step, setStep] = useState<AuthStep>("phone");
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState("");
-  const [countryCode, setCountryCode] = useState("+91");
-  const [phone, setPhone] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const [verifiedPhone, setVerifiedPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadUser() {
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        const data = (await response.json()) as { user: AuthUser | null };
-
-        if (active) {
-          setUser(data.user);
-        }
-      } catch {
-        if (active) {
-          setUser(null);
-        }
-      } finally {
-        if (active) {
-          setAuthReady(true);
-        }
-      }
+  const loadProfile = useCallback(async (supabaseUser: User | null) => {
+    if (!supabaseUser) {
+      setUser(null);
+      return;
     }
 
-    void loadUser();
+    if (!hasSupabaseConfig()) {
+      setUser(profileFromUser(supabaseUser));
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, phone, address, role")
+      .eq("id", supabaseUser.id)
+      .maybeSingle();
+
+    if (!data) {
+      const fallback = profileFromUser(supabaseUser);
+      await supabase.from("profiles").upsert({
+        id: fallback.id,
+        email: fallback.email,
+        full_name: fallback.name,
+        phone: fallback.phone || null,
+        role: "customer"
+      });
+      setUser(fallback);
+      return;
+    }
+
+    setUser({
+      id: supabaseUser.id,
+      email: data.email || supabaseUser.email || "",
+      name: data.full_name || supabaseUser.email?.split("@")[0] || "Customer",
+      phone: data.phone || undefined,
+      address: data.address || undefined,
+      role: data.role === "admin" ? "admin" : "customer"
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const testingUser = window.localStorage.getItem(TESTING_USER_KEY);
+      if (testingUser) {
+        setUser(JSON.parse(testingUser) as AuthUser);
+        setAuthReady(true);
+        return;
+      }
+    } catch {
+      window.localStorage.removeItem(TESTING_USER_KEY);
+    }
+
+    if (!hasSupabaseConfig()) {
+      setAuthReady(true);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    let active = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (!active) {
+        return;
+      }
+      void loadProfile(data.user).finally(() => setAuthReady(true));
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void loadProfile(session?.user || null).finally(() => setAuthReady(true));
+    });
 
     return () => {
       active = false;
+      listener.subscription.unsubscribe();
     };
+  }, [loadProfile]);
+
+  const requestLogin = useCallback(
+    (reason = "Sign in to continue.") => {
+      if (user) {
+        return true;
+      }
+
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("rida-login-reason", reason);
+      }
+
+      router.push(`/login?next=${encodeURIComponent(pathname || "/account")}`);
+      return false;
+    },
+    [pathname, router, user]
+  );
+
+  const refreshProfileInternal = useCallback(async () => {
+    try {
+      const testingUser = window.localStorage.getItem(TESTING_USER_KEY);
+      if (testingUser) {
+        setUser(JSON.parse(testingUser) as AuthUser);
+        return;
+      }
+    } catch {
+      window.localStorage.removeItem(TESTING_USER_KEY);
+    }
+
+    if (!hasSupabaseConfig()) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    const { data } = await supabase.auth.getUser();
+    await loadProfile(data.user);
+  }, [loadProfile]);
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      try {
+        window.localStorage.removeItem(TESTING_USER_KEY);
+        const supabase = getSupabaseBrowserClient();
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          return { error: error.message };
+        }
+
+        await refreshProfileInternal();
+        return {};
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : "Unable to sign in." };
+      }
+    },
+    [refreshProfileInternal]
+  );
+
+  const signUp = useCallback(async ({ email, fullName, password, phone }: SignUpInput) => {
+    try {
+      window.localStorage.removeItem(TESTING_USER_KEY);
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone || null
+          }
+        }
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      if (data.user) {
+        await supabase.from("profiles").upsert({
+          id: data.user.id,
+          email,
+          full_name: fullName,
+          phone: phone || null,
+          role: "customer"
+        });
+        await loadProfile(data.user);
+      }
+
+      return { message: "Account created. Check your email if confirmation is enabled in Supabase." };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unable to create account." };
+    }
+  }, [loadProfile]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}/login`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return { message: "Password reset link sent to your email." };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unable to send password reset email." };
+    }
   }, []);
 
-  function requestLogin(reason = "Sign in to continue.") {
-    if (user) {
-      return true;
+  const testingLogin = useCallback(async (role: ProfileRole = "customer") => {
+    const testingUser: AuthUser = {
+      id: role === "admin" ? "testing-admin" : "testing-customer",
+      email: role === "admin" ? "admin.testing@ridaboutique.local" : "customer.testing@ridaboutique.local",
+      name: role === "admin" ? "Testing Admin" : "Rida Testing Customer",
+      phone: role === "admin" ? "+91 70000 00001" : "+91 70000 00000",
+      address: role === "admin" ? "Admin testing workspace" : "Lal Chowk, Srinagar, Jammu and Kashmir",
+      role
+    };
+
+    if (hasSupabaseConfig()) {
+      await getSupabaseBrowserClient().auth.signOut();
     }
 
-    setLoginReason(reason);
-    setLoginOpen(true);
-    return false;
-  }
+    window.localStorage.setItem(TESTING_USER_KEY, JSON.stringify(testingUser));
+    setUser(testingUser);
+    setAuthReady(true);
+  }, []);
 
-  async function signOut() {
-    await fetch("/api/auth/logout", { method: "POST" });
+  const updateProfile = useCallback(
+    async (profile: { fullName?: string; phone?: string; address?: string }) => {
+      if (!user) {
+        return { error: "Sign in before updating your profile." };
+      }
+
+      try {
+        if (user.id.startsWith("testing-")) {
+          const nextUser = {
+            ...user,
+            name: profile.fullName || user.name,
+            phone: profile.phone || user.phone,
+            address: profile.address || user.address
+          };
+          window.localStorage.setItem(TESTING_USER_KEY, JSON.stringify(nextUser));
+          setUser(nextUser);
+          return {};
+        }
+
+        const supabase = getSupabaseBrowserClient();
+        const { error } = await supabase.from("profiles").upsert({
+          id: user.id,
+          email: user.email,
+          full_name: profile.fullName || user.name,
+          phone: profile.phone || user.phone || null,
+          address: profile.address || null,
+          role: user.role
+        });
+
+        if (error) {
+          return { error: error.message };
+        }
+
+        await refreshProfileInternal();
+        return {};
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : "Unable to update profile." };
+      }
+    },
+    [refreshProfileInternal, user]
+  );
+
+  const signOut = useCallback(async () => {
+    window.localStorage.removeItem(TESTING_USER_KEY);
+    if (hasSupabaseConfig()) {
+      await getSupabaseBrowserClient().auth.signOut();
+    }
     setUser(null);
-  }
-
-  async function testingLogin() {
-    setSubmitting(true);
-    setError("");
-    setNameError("");
-    setPhoneError("");
-    setNotice("");
-
-    try {
-      const response = await fetch("/api/auth/testing-login", { method: "POST" });
-      const data = (await response.json()) as { error?: string; user?: AuthUser };
-
-      if (!response.ok || !data.user) {
-        setError(data.error || "Unable to start testing login.");
-        return;
-      }
-
-      setUser(data.user);
-      setLoginOpen(false);
-      setStep("phone");
-      setOtp("");
-    } catch {
-      setError("Unable to start testing login.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function getPhoneWithCountryCode() {
-    return `${countryCode}${phone.replace(/\D/g, "")}`;
-  }
-
-  async function sendOtp(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setNameError("");
-    setPhoneError("");
-    setNotice("");
-
-    let blocked = false;
-    const trimmedName = name.trim();
-    const phoneDigits = phone.replace(/\D/g, "");
-
-    if (!trimmedName) {
-      setNameError("Name is required.");
-      blocked = true;
-    }
-
-    if (!phoneDigits) {
-      setPhoneError("Enter your WhatsApp phone number.");
-      blocked = true;
-    } else if (countryCode === "+91" && phoneDigits.length !== 10) {
-      setPhoneError("Enter a 10 digit Indian WhatsApp number.");
-      blocked = true;
-    } else if (phoneDigits.length < 7 || phoneDigits.length > 12) {
-      setPhoneError("Enter a valid WhatsApp number.");
-      blocked = true;
-    }
-
-    if (blocked) {
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const response = await fetch("/api/auth/whatsapp/send-otp", {
-        body: JSON.stringify({ phone: getPhoneWithCountryCode() }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST"
-      });
-      const data = (await response.json()) as { devMode?: boolean; error?: string; phone?: string };
-
-      if (!response.ok) {
-        setError(data.error || "Unable to send WhatsApp OTP.");
-        return;
-      }
-
-      setVerifiedPhone(data.phone || phone);
-      setStep("otp");
-      setNotice(
-        data.devMode
-          ? "Development mode: OTP printed in server logs."
-          : "OTP sent on WhatsApp. It expires in 5 minutes."
-      );
-    } catch {
-      setError("Unable to send WhatsApp OTP.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function verifyOtp(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setNameError("");
-    setNotice("");
-
-    const trimmedName = name.trim();
-
-    if (!trimmedName) {
-      setNameError("Name is required.");
-      setStep("phone");
-      return;
-    }
-
-    if (!/^[0-9]{6}$/.test(otp.trim())) {
-      setError("Enter the 6 digit OTP.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const response = await fetch("/api/auth/whatsapp/verify-otp", {
-        body: JSON.stringify({ name: trimmedName, otp, phone: verifiedPhone || getPhoneWithCountryCode() }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST"
-      });
-      const data = (await response.json()) as { error?: string; user?: AuthUser };
-
-      if (!response.ok || !data.user) {
-        setError(data.error || "Unable to verify OTP.");
-        return;
-      }
-
-      setUser(data.user);
-      setLoginOpen(false);
-      setStep("phone");
-      setOtp("");
-      setNotice("");
-    } catch {
-      setError("Unable to verify OTP.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+    router.push("/");
+  }, [router]);
 
   const value = useMemo(
     () => ({
@@ -245,167 +331,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       authReady,
       requestLogin,
+      testingLogin,
+      signIn,
+      signUp,
+      resetPassword,
+      updateProfile,
+      refreshProfile: refreshProfileInternal,
       signOut
     }),
-    [authReady, user]
+    [authReady, refreshProfileInternal, requestLogin, resetPassword, signIn, signOut, signUp, testingLogin, updateProfile, user]
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-      <Modal
-        open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        title={step === "phone" ? "WhatsApp login" : "Verify WhatsApp OTP"}
-      >
-        <div className="rounded-2xl bg-brand-cream p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-brand-green">
-            <LockKeyhole className="size-4 text-brand-gold" />
-            {loginReason}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-brand-charcoal/62">
-            We use WhatsApp OTP for login. No password is saved in the app.
-          </p>
-        </div>
-
-        {step === "phone" ? (
-          <form className="mt-5 grid gap-4" onSubmit={sendOtp}>
-            <Field error={nameError} label="Name">
-              <Input
-                autoFocus
-                required
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  setNameError("");
-                }}
-                placeholder="Your full name"
-              />
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
-              <Field label="Country Code">
-                <Select value={countryCode} onChange={(event) => setCountryCode(event.target.value)}>
-                  {countryCodes.map((country) => (
-                    <option key={country.value} value={country.value}>
-                      {country.label} ({country.value})
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field error={phoneError || error} label="WhatsApp Number">
-                <Input
-                  inputMode="tel"
-                  value={phone}
-                  onChange={(event) => {
-                    setPhone(event.target.value.replace(/\D/g, "").slice(0, 12));
-                    setError("");
-                    setPhoneError("");
-                  }}
-                  placeholder="70000 00000"
-                />
-              </Field>
-            </div>
-            <Button className="w-full" disabled={submitting} type="submit">
-              <MessageCircle className="size-4" />
-              {submitting ? "Sending OTP..." : "Send WhatsApp OTP"}
-            </Button>
-            <div className="rounded-2xl border border-brand-green/10 bg-white p-4">
-              <p className="text-sm font-semibold text-brand-green">Testing login</p>
-              <p className="mt-1 text-xs leading-5 text-brand-charcoal/55">
-                Use this while WhatsApp OTP and database setup are paused.
-              </p>
-              <Button
-                className="mt-3 w-full"
-                disabled={submitting}
-                onClick={() => void testingLogin()}
-                type="button"
-                variant="secondary"
-              >
-                <UserRound className="size-4" />
-                {submitting ? "Opening Testing Account..." : "Continue With Testing Account"}
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <form className="mt-5 grid gap-4" onSubmit={verifyOtp}>
-            <div className="rounded-2xl border border-brand-green/10 bg-white p-4 text-sm leading-6 text-brand-charcoal/62">
-              OTP sent to <span className="font-semibold text-brand-green">{verifiedPhone}</span>
-            </div>
-            <Field error={error} label="6 Digit OTP">
-              <Input
-                autoFocus
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(event) => {
-                  setOtp(event.target.value.replace(/\D/g, "").slice(0, 6));
-                  setError("");
-                }}
-                placeholder="123456"
-              />
-            </Field>
-            {notice ? (
-              <p className="rounded-2xl bg-brand-cream p-4 text-sm font-semibold text-brand-green">
-                {notice}
-              </p>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button disabled={submitting} type="submit">
-                <UserRound className="size-4" />
-                {submitting ? "Verifying..." : "Verify OTP"}
-              </Button>
-              <Button
-                disabled={submitting}
-                onClick={() => {
-                  setStep("phone");
-                  setOtp("");
-                  setError("");
-                  setNotice("");
-                }}
-                type="button"
-                variant="secondary"
-              >
-                Change Number
-              </Button>
-            </div>
-          </form>
-        )}
-      </Modal>
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function LoginRequired({
-  description = "Sign in to access this account feature.",
+  description = "Sign in with email and password to continue.",
   title = "Sign in to continue"
 }: {
   description?: string;
   title?: string;
 }) {
-  const { requestLogin } = useAuth();
-
   return (
-    <div className="rounded-2xl border border-brand-green/10 bg-white p-8 text-center shadow-luxury sm:rounded-[1.75rem] sm:p-12">
-      <MessageCircle className="mx-auto size-10 text-brand-gold" />
-      <h2 className="mt-5 font-serif text-3xl text-brand-green sm:text-5xl">{title}</h2>
-      <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-brand-charcoal/60">
-        {description}
-      </p>
-      <Button className="mt-8" onClick={() => requestLogin(description)}>
-        Sign In With WhatsApp
-      </Button>
+    <div className="rounded-lg border border-stone-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+      <Mail className="mx-auto size-9 text-neutral-950 dark:text-stone-100" />
+      <h2 className="mt-4 text-2xl font-semibold text-neutral-950 dark:text-stone-100">{title}</h2>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-stone-600 dark:text-stone-300">{description}</p>
+      <ButtonLink className="mt-6" href="/login">
+        Sign In
+      </ButtonLink>
     </div>
   );
 }
 
 export function AuthLoading({ title = "Checking your session" }: { title?: string }) {
   return (
-    <div className="rounded-2xl border border-brand-green/10 bg-white p-8 text-center shadow-luxury sm:rounded-[1.75rem] sm:p-12">
-      <div className="mx-auto size-10 animate-pulse rounded-full bg-brand-gold/35" />
-      <h2 className="mt-5 font-serif text-3xl text-brand-green sm:text-5xl">{title}</h2>
-      <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-brand-charcoal/60">
-        Please wait while we confirm your WhatsApp login.
+    <div className="rounded-lg border border-stone-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="mx-auto size-9 animate-pulse rounded-full bg-stone-200 dark:bg-neutral-800" />
+      <h2 className="mt-4 text-2xl font-semibold text-neutral-950 dark:text-stone-100">{title}</h2>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-stone-600 dark:text-stone-300">
+        Please wait while we confirm your email login.
       </p>
+    </div>
+  );
+}
+
+export function AdminOnlyMessage() {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+      <LockKeyhole className="mx-auto size-9" />
+      <h2 className="mt-4 text-2xl font-semibold">Admin access required</h2>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-stone-600 dark:text-stone-300">
+        Your account is signed in, but it is not marked as admin in the profiles table.
+      </p>
+      <ButtonLink className="mt-6" href="/account" variant="secondary">
+        <UserRound className="size-4" />
+        My Account
+      </ButtonLink>
     </div>
   );
 }

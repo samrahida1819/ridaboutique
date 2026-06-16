@@ -143,7 +143,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, savedAddresses, user]);
 
   const addToCart = useCallback((product: Product, quantity = 1, variant?: string) => {
-    if (!requestLogin("Sign in with WhatsApp to add items to your cart.")) {
+    if (!requestLogin("Sign in with email to add items to your cart.")) {
       return false;
     }
 
@@ -196,7 +196,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, user]);
 
   const toggleWishlist = useCallback((product: Product) => {
-    if (!requestLogin("Sign in with WhatsApp to save products to your wishlist.")) {
+    if (!requestLogin("Sign in with email to save products to your wishlist.")) {
       return false;
     }
 
@@ -212,7 +212,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const moveWishlistToCart = useCallback(
     (product: Product) => {
-      if (!requestLogin("Sign in with WhatsApp to move wishlist items to cart.")) {
+      if (!requestLogin("Sign in with email to move wishlist items to cart.")) {
         return false;
       }
 
@@ -231,7 +231,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const addSavedAddress = useCallback(async (address: Omit<SavedAddress, "id">) => {
-    if (!requestLogin("Sign in with WhatsApp to save delivery addresses.")) {
+    if (!requestLogin("Sign in with email to save delivery addresses.")) {
       return null;
     }
 
@@ -275,7 +275,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [requestLogin, savedAddresses.length]);
 
   const updateSavedAddress = useCallback(async (addressId: string, address: Omit<SavedAddress, "id">) => {
-    if (!requestLogin("Sign in with WhatsApp to edit saved addresses.")) {
+    if (!requestLogin("Sign in with email to edit saved addresses.")) {
       return null;
     }
 
@@ -324,7 +324,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [requestLogin]);
 
   const removeSavedAddress = useCallback(async (addressId: string) => {
-    if (!requestLogin("Sign in with WhatsApp to manage saved addresses.")) {
+    if (!requestLogin("Sign in with email to manage saved addresses.")) {
       return false;
     }
 
@@ -372,7 +372,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [requestLogin]);
 
   const setDefaultAddress = useCallback(async (addressId: string) => {
-    if (!requestLogin("Sign in with WhatsApp to manage saved addresses.")) {
+    if (!requestLogin("Sign in with email to manage saved addresses.")) {
       return false;
     }
 

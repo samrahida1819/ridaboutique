@@ -1,52 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { ProductCard } from "@/components/commerce/product-card";
 import { ProductGallery } from "@/components/commerce/product-gallery";
 import { ProductPurchasePanel } from "@/components/commerce/product-purchase-panel";
 import { ProductReviewsClient } from "@/components/commerce/product-reviews-client";
 import { ButtonLink } from "@/components/ui/button";
-import { products } from "@/data/store";
-import { useAdminProducts } from "@/lib/admin-store";
-import type { Product } from "@/types/commerce";
+import { getRelatedProducts } from "@/data/store";
+import { useCatalog } from "@/hooks/use-store-data";
 
-export function ProductDetailClient({
-  fallbackProduct,
-  fallbackRelated,
-  slug
-}: {
-  fallbackProduct: Product | null;
-  fallbackRelated: Product[];
-  slug: string;
-}) {
-  const catalogProducts = useAdminProducts(products);
-  const [storageChecked, setStorageChecked] = useState(Boolean(fallbackProduct));
-  const product = useMemo(
-    () => catalogProducts.find((item) => item.slug === slug) || fallbackProduct,
-    [catalogProducts, fallbackProduct, slug]
-  );
-  const related = useMemo(() => {
-    if (!product) {
-      return fallbackRelated;
-    }
+export function ProductDetailClient({ slug }: { slug: string }) {
+  const { loading, products } = useCatalog(true);
+  const product = products.find((item) => item.slug === slug);
+  const related = product ? getRelatedProducts(product) : [];
 
-    const adminRelated = catalogProducts
-      .filter(
-        (item) =>
-          item.id !== product.id &&
-          (item.category === product.category || item.collection === product.collection)
-      )
-      .slice(0, 4);
-
-    return adminRelated.length ? adminRelated : fallbackRelated;
-  }, [catalogProducts, fallbackRelated, product]);
-
-  useEffect(() => {
-    setStorageChecked(true);
-  }, []);
-
-  if (!product && !storageChecked) {
+  if (loading) {
     return (
       <main className="min-h-screen bg-brand-ivory pt-32 md:pt-40">
         <section className="luxury-container pb-16">
@@ -68,10 +36,10 @@ export function ProductDetailClient({
             </p>
             <h1 className="mt-2 font-serif text-3xl text-brand-green">Product not found</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-brand-charcoal/62">
-              This product is not available in the current admin catalog.
+              This product is not available in the current catalog.
             </p>
-            <ButtonLink className="mt-5" href="/shop">
-              Back to Shop
+            <ButtonLink className="mt-5" href="/products">
+              Back to Products
             </ButtonLink>
           </div>
         </section>
@@ -100,7 +68,7 @@ export function ProductDetailClient({
             </p>
           </div>
           <div className="grid gap-4">
-            {product.details.map((detail) => (
+            {(product.details.length ? product.details : ["Premium boutique finish", "Email login checkout", "Cash on Delivery available"]).map((detail) => (
               <div className="rounded-2xl border border-brand-green/10 bg-brand-ivory p-5" key={detail}>
                 <p className="text-sm text-brand-charcoal/72">{detail}</p>
               </div>
@@ -108,7 +76,7 @@ export function ProductDetailClient({
             <div className="rounded-2xl border border-brand-green/10 bg-brand-green p-5 text-brand-ivory">
               <p className="flex items-center gap-3 text-sm">
                 <ShieldCheck className="size-5 text-brand-gold" />
-                Reviews are accepted from customers and published after admin approval.
+                Product, order, and customer access are protected by Supabase authentication.
               </p>
             </div>
           </div>

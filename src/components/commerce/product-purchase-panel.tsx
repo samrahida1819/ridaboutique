@@ -26,6 +26,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
 
   const wishlisted = isWishlisted(product.id);
   const soldOut = product.stockStatus === "Sold out";
+  const activePrice = product.salePrice && product.salePrice > 0 ? product.salePrice : product.price;
 
   return (
     <aside className="rounded-2xl border border-brand-green/10 bg-white p-4 shadow-luxury sm:rounded-[1.75rem] sm:p-6 lg:sticky lg:top-32">
@@ -54,9 +55,9 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       </div>
 
       <div className="mt-5 flex items-end gap-3">
-        <p className="text-2xl font-semibold text-brand-charcoal">{formatCurrency(product.price)}</p>
-        {product.originalPrice ? (
-          <p className="pb-1 text-sm text-brand-charcoal/45 line-through">{formatCurrency(product.originalPrice)}</p>
+        <p className="text-2xl font-semibold text-brand-charcoal">{formatCurrency(activePrice)}</p>
+        {product.originalPrice || activePrice < product.price ? (
+          <p className="pb-1 text-sm text-brand-charcoal/45 line-through">{formatCurrency(product.originalPrice || product.price)}</p>
         ) : null}
       </div>
 
@@ -145,7 +146,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
         </Button>
         <Button
           onClick={() => {
-            if (requestLogin("Sign in with WhatsApp to save stock alerts.")) {
+            if (requestLogin("Sign in with email to save stock alerts.")) {
               toast({
                 kind: "info",
                 title: "Back-in-stock alert saved",

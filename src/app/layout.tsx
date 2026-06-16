@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Footer } from "@/components/layout/footer";
-import { Navbar } from "@/components/layout/navbar";
-import { AnnouncementBar } from "@/components/layout/announcement-bar";
-import { BackButton } from "@/components/layout/back-button";
-import { PageShell } from "@/components/motion/page-shell";
 import { Providers } from "@/components/providers/providers";
+import { SiteChrome } from "@/components/layout/site-chrome";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ridaboutique.in"),
   title: {
-    default: "Rida Boutique | Luxury Ecommerce in Kashmir",
+    default: "Rida Boutique | Premium Boutique Ecommerce",
     template: "%s | Rida Boutique"
   },
   description:
-    "Rida Boutique is a modern international luxury boutique based in Kashmir, offering women's fashion, custom earrings, frames, cash bouquets, hijabs, accessories, and made-to-order gifts.",
+    "Rida Boutique is a premium boutique ecommerce store for women's fashion, hijabs, custom earrings, accessories, and thoughtful gifting.",
   keywords: [
     "Rida Boutique",
     "Kashmir boutique",
@@ -39,14 +35,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-IN">
-      <body>
+    <html lang="en-IN" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('rida-theme');if(t==='dark'){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark'}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light'}}catch(e){}"
+          }}
+        />
+      </head>
+      <body className="bg-[var(--background)] text-[var(--foreground)] antialiased">
         <Providers>
-          <AnnouncementBar />
-          <Navbar />
-          <BackButton />
-          <PageShell>{children}</PageShell>
-          <Footer />
+          <SiteChrome>{children}</SiteChrome>
         </Providers>
       </body>
     </html>

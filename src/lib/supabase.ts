@@ -1,42 +1,51 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let browserClient: SupabaseClient | null = null;
+let publicClient: SupabaseClient | null = null;
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabasePublishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+export function hasSupabaseConfig() {
+  return Boolean(supabaseUrl && supabasePublishableKey);
+}
 
 export function getSupabaseBrowserClient() {
   if (browserClient) {
     return browserClient;
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+  if (!supabaseUrl || !supabasePublishableKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
   }
 
-  browserClient = createClient(url, anonKey);
+  browserClient = createClient(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      persistSession: true
+    }
+  });
   return browserClient;
 }
 
-let serviceClient: SupabaseClient | null = null;
-
-export function getSupabaseServiceClient() {
-  if (serviceClient) {
-    return serviceClient;
+export function getSupabasePublicClient() {
+  if (publicClient) {
+    return publicClient;
   }
 
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    throw new Error("Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+  if (!supabaseUrl || !supabasePublishableKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
   }
 
-  serviceClient = createClient(url, serviceRoleKey, {
+  publicClient = createClient(supabaseUrl, supabasePublishableKey, {
     auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
       persistSession: false
     }
   });
 
-  return serviceClient;
+  return publicClient;
 }

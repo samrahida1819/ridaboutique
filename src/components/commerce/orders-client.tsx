@@ -1,95 +1,121 @@
 "use client";
 
-import { PackageCheck, Truck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
-import { AuthLoading, LoginRequired, useAuth } from "@/components/providers/auth-provider";
+import { useEffect, useState } from "react";
+import { LoginRequired, useAuth } from "@/components/providers/auth-provider";
 import { useShop } from "@/components/providers/shop-provider";
-import { useToast } from "@/components/providers/toast-provider";
+import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-const orderSteps = ["Confirmed", "Preparing", "Dispatched", "Delivered"];
+import type { Order } from "@/types/commerce";
 
 export function OrdersClient() {
-  const { authReady, isAuthenticated } = useAuth();
-  const { orders } = useShop();
-  const { toast } = useToast();
+  const { authReady, isAuthenticated, user } = useAuth();
+  const { orders: localOrders } = useShop();
+  const [orders, setOrders] = useState<Order[]>(localOrders);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadOrders() {
+      if (!user || !hasSupabaseConfig()) {
+        setOrders(localOrders);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await getSupabaseBrowserClient()
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (active && data) {
+        setOrders(
+          data.map((order) => ({
+            id: order.order_number || order.id,
+            date: order.created_at,
+            total: Number(order.total || 0),
+            status: order.status,
+            customerName: order.full_name,
+            email: order.email,
+            phone: order.phone,
+            address: order.address,
+            city: order.city,
+            state: order.state,
+            pincode: order.pincode,
+            paymentMethod: order.payment_method,
+            items: (order.order_items || []).map((item: Record<string, unknown>) => ({
+              productId: String(item.product_id || ""),
+              name: String(item.product_name || "Product"),
+              quantity: Number(item.quantity || 1),
+              price: Number(item.unit_price || 0)
+            }))
+          }))
+        );
+      }
+
+      if (active) {
+        setLoading(false);
+      }
+    }
+
+    void loadOrders();
+
+    return () => {
+      active = false;
+    };
+  }, [localOrders, user]);
 
   if (!authReady) {
-    return <AuthLoading title="Checking your orders" />;
+    return <div className="app-container pb-12 pt-32 md:pt-40">Loading orders...</div>;
   }
 
   if (!isAuthenticated) {
     return (
-      <LoginRequired
-        description="Sign in to view order history, tracking IDs, delivery status, and order support."
-        title="Sign in to view your orders"
-      />
+      <div className="app-container pb-12 pt-32 md:pt-40">
+        <LoginRequired description="Sign in to view your order history and track order status." title="Orders" />
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-5">
-      {orders.length ? (
-        orders.map((order) => (
-          <article className="rounded-2xl border border-brand-green/10 bg-white p-4 shadow-luxury sm:rounded-[1.75rem] sm:p-6" key={order.id}>
-            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
-              <div>
-                <Badge>{order.status}</Badge>
-                <h2 className="mt-3 font-serif text-3xl text-brand-green sm:mt-4 sm:text-4xl">{order.id}</h2>
-                <p className="mt-2 text-sm text-brand-charcoal/60">
-                  Placed {formatDate(order.date)} | {formatCurrency(order.total)}
-                </p>
-              </div>
-              <Button
-                onClick={() =>
-                  toast({
-                    kind: "info",
-                    title: "Tracking refreshed",
-                    description: `${order.trackingId} is linked to courier partner delivery.`
-                  })
-                }
-                variant="secondary"
-              >
-                <Truck className="size-4" />
-                Track Order
-              </Button>
-            </div>
-            <div className="mt-6 grid gap-3">
-              {order.items.map((item) => (
-                <div className="flex items-center justify-between rounded-2xl bg-brand-cream px-4 py-3 text-sm" key={item.name}>
-                  <span className="text-brand-charcoal/70">{item.name}</span>
-                  <span className="font-semibold text-brand-green">Qty {item.quantity}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-4">
-              {orderSteps.map((step) => {
-                const currentStatus = order.status === "Return requested" ? "Delivered" : order.status;
-                const active = orderSteps.indexOf(step) <= orderSteps.indexOf(currentStatus);
+    <section className="app-container pb-12 pt-32 md:pt-40">
+      <h1 className="text-3xl font-semibold tracking-tight">Orders</h1>
+      <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">Track your order status from pending to delivered.</p>
 
-                return (
-                  <div className={active ? "rounded-2xl bg-brand-green p-4 text-brand-ivory" : "rounded-2xl bg-brand-cream p-4 text-brand-green/45"} key={step}>
-                    <PackageCheck className="size-4 text-brand-gold" />
-                    <p className="mt-3 text-sm font-semibold">{step}</p>
+      {loading ? (
+        <div className="mt-8 h-40 animate-pulse rounded-lg bg-stone-100 dark:bg-neutral-900" />
+      ) : orders.length ? (
+        <div className="mt-8 grid gap-4">
+          {orders.map((order) => (
+            <article className="rounded-lg border border-stone-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950" key={order.id}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-semibold">{order.id}</p>
+                  <p className="mt-1 text-sm text-stone-500">{formatDate(order.date)}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-md border border-stone-200 px-3 py-1 text-sm dark:border-neutral-800">{order.status}</span>
+                  <span className="font-semibold">{formatCurrency(order.total)}</span>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2 text-sm text-stone-600 dark:text-stone-300">
+                {order.items.map((item) => (
+                  <div className="flex justify-between gap-3" key={`${order.id}-${item.name}`}>
+                    <span>{item.name} x {item.quantity}</span>
+                    <span>{item.price ? formatCurrency(item.price * item.quantity) : ""}</span>
                   </div>
-                );
-              })}
-            </div>
-          </article>
-        ))
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-brand-green/20 bg-white p-8 text-center shadow-luxury sm:rounded-[1.75rem] sm:p-12">
-          <PackageCheck className="mx-auto size-10 text-brand-gold" />
-          <h2 className="mt-5 font-serif text-3xl text-brand-green sm:text-5xl">No orders yet</h2>
-          <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-brand-charcoal/60">
-            Orders placed from checkout will appear here with tracking and support actions.
-          </p>
-          <ButtonLink className="mt-8" href="/shop">
-            Start Shopping
-          </ButtonLink>
+        <div className="mt-8 rounded-lg border border-stone-200 bg-white p-10 text-center dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-lg font-semibold">No orders yet</p>
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">Placed orders will show here.</p>
         </div>
       )}
-    </div>
+    </section>
   );
 }

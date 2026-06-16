@@ -74,7 +74,7 @@ export function ShopExplorer({
   const [loading, setLoading] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-  const [desktopFilterPanelOpen, setDesktopFilterPanelOpen] = useState(true);
+  const [desktopFilterPanelOpen, setDesktopFilterPanelOpen] = useState(false);
   const catalogProducts = useAdminProducts(products);
   const [openSections, setOpenSections] = useState<Record<FilterSection, boolean>>({
     category: true,

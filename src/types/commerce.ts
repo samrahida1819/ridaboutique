@@ -1,4 +1,5 @@
 export type ProductCategory =
+  | string
   | "womens-fashion"
   | "custom-earrings"
   | "custom-frames"
@@ -19,9 +20,12 @@ export type Product = {
   slug: string;
   name: string;
   category: ProductCategory;
+  categoryId?: string;
+  categoryName?: string;
   collection: string;
   price: number;
   originalPrice?: number;
+  salePrice?: number | null;
   currency: "INR";
   image: string;
   hoverImage: string;
@@ -37,8 +41,11 @@ export type Product = {
   isNew?: boolean;
   isBestSeller?: boolean;
   isFeatured?: boolean;
+  isActive?: boolean;
   returnEligible: boolean;
   variants?: ProductVariant[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Collection = {
@@ -77,11 +84,26 @@ export type Testimonial = {
   rating: number;
 };
 
+export type Banner = {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  active?: boolean;
+  sortOrder?: number;
+};
+
 export type OrderStatus =
+  | "Pending"
+  | "Confirmed"
+  | "Packed"
+  | "Shipped"
   | "Confirmed"
   | "Preparing"
   | "Dispatched"
   | "Delivered"
+  | "Cancelled"
   | "Return requested";
 
 export type Order = {
@@ -89,10 +111,20 @@ export type Order = {
   date: string;
   total: number;
   status: OrderStatus;
-  trackingId: string;
+  trackingId?: string;
+  customerName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  paymentMethod?: "cod" | "razorpay";
   items: Array<{
+    productId?: string;
     name: string;
     quantity: number;
+    price?: number;
   }>;
 };
 
@@ -111,3 +143,58 @@ export type AdminMetric = {
   value: string;
   delta: string;
 };
+
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  active?: boolean;
+};
+
+export type ProfileRole = "admin" | "customer";
+
+export type Profile = {
+  id: string;
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  role: ProfileRole;
+  createdAt?: string;
+};
+
+export type ContactDetails = {
+  storeName: string;
+  email: string;
+  primaryPhone: string;
+  secondaryPhone: string;
+  whatsappNumber: string;
+  businessAddress: string;
+  googleMapsLink: string;
+  workingHours: string;
+  instagramLink: string;
+  facebookLink: string;
+  youtubeLink: string;
+};
+
+export type StoreSettings = {
+  storeName: string;
+  logoUrl: string;
+  deliveryCharges: number;
+  codEnabled: boolean;
+  defaultTheme: "light" | "dark";
+  instagramLink: string;
+  facebookLink: string;
+  youtubeLink: string;
+};
+
+export type WebsiteContentKey =
+  | "about"
+  | "faq"
+  | "privacy"
+  | "terms"
+  | "shipping"
+  | "returns";
+
+export type WebsiteContent = Record<WebsiteContentKey, string>;

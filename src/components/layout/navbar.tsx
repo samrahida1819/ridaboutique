@@ -2,27 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Heart,
-  Menu,
-  Search,
-  ShoppingBag,
-  UserRound,
-  X,
-  ArrowRight
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Heart, Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
+import { ThemeToggle } from "@/components/providers/theme-provider";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useShop } from "@/components/providers/shop-provider";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
 import { megaMenu, products, trendingSearches } from "@/data/store";
 import { cn } from "@/lib/utils";
-import { useShop } from "@/components/providers/shop-provider";
-import { useAuth } from "@/components/providers/auth-provider";
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "Shop", href: "/shop" },
+  { label: "Products", href: "/products" },
   { label: "Custom Orders", href: "/custom-orders" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" }
@@ -38,6 +30,8 @@ export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const searchRef = useRef<HTMLFormElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 36);
@@ -52,6 +46,36 @@ export function Navbar() {
     } catch {
       setRecentSearches([]);
     }
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => searchInputRef.current?.focus());
+
+    function onPointerDown(event: PointerEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchOpen(false);
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSearchOpen(false);
+        setQuery("");
+      }
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [searchOpen]);
 
   const suggestions = useMemo(() => {
@@ -71,7 +95,7 @@ export function Navbar() {
   }, [query]);
 
   const isTransparent = pathname === "/" && !scrolled && !mobileOpen && !searchOpen;
-  const navTone = isTransparent ? "text-brand-ivory" : "text-brand-ivory";
+  const navTone = "text-brand-ivory";
 
   function submitSearch(value = query) {
     const next = value.trim();
@@ -84,12 +108,12 @@ export function Navbar() {
     setRecentSearches(merged);
     setSearchOpen(false);
     setMobileOpen(false);
-    router.push(`/shop?query=${encodeURIComponent(next)}`);
+    router.push(`/products?query=${encodeURIComponent(next)}`);
   }
 
   function handleMobileAccountClick() {
     if (!isAuthenticated) {
-      requestLogin("Sign in with WhatsApp to open your profile.");
+      requestLogin("Sign in with email to open your profile.");
     } else {
       router.push("/account");
     }
@@ -102,9 +126,7 @@ export function Navbar() {
       <header
         className={cn(
           "fixed inset-x-0 top-[33px] z-50 border-b transition-all duration-500 ease-luxury",
-          isTransparent
-            ? "border-transparent bg-transparent"
-            : "glass-green"
+          isTransparent ? "border-transparent bg-transparent" : "glass-green"
         )}
       >
         <nav className="luxury-container flex h-16 items-center justify-between gap-2 md:h-[74px] md:gap-5">
@@ -134,21 +156,116 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <IconButton label="Search" onClick={() => setSearchOpen(true)}>
-              <Search className="size-4" />
-            </IconButton>
-            <IconLink count={wishlistCount} href="/wishlist" label="Wishlist">
+            <form
+              className={cn(
+                "relative flex h-9 shrink-0 items-center rounded-full transition-all duration-300 ease-luxury sm:h-10",
+                searchOpen
+                  ? "w-[calc(100vw-6rem)] max-w-64 border border-brand-gold/30 bg-white px-0 text-brand-green shadow-luxury sm:w-56 md:w-64"
+                  : "w-9 text-brand-ivory hover:bg-white/10 sm:w-10"
+              )}
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitSearch();
+              }}
+              ref={searchRef}
+            >
+              <button
+                aria-label={searchOpen ? "Submit search" : "Open search"}
+                className={cn(
+                  "grid size-9 shrink-0 place-items-center rounded-full transition sm:size-10",
+                  searchOpen ? "text-brand-green hover:text-brand-gold" : "text-brand-ivory"
+                )}
+                onClick={(event) => {
+                  if (!searchOpen) {
+                    event.preventDefault();
+                    setSearchOpen(true);
+                  }
+                }}
+                type={searchOpen ? "submit" : "button"}
+              >
+                <Search className="size-4" />
+              </button>
+              <input
+                aria-label="Search products"
+                className={cn(
+                  "min-w-0 flex-1 bg-transparent pr-3 text-sm font-medium outline-none placeholder:text-brand-green/45",
+                  searchOpen ? "w-full opacity-100" : "pointer-events-none w-0 opacity-0"
+                )}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search products"
+                ref={searchInputRef}
+                tabIndex={searchOpen ? 0 : -1}
+                value={query}
+              />
+              {searchOpen && query ? (
+                <button
+                  aria-label="Clear search"
+                  className="mr-1 grid size-7 shrink-0 place-items-center rounded-full text-brand-green/55 transition hover:bg-brand-cream hover:text-brand-green"
+                  onClick={() => setQuery("")}
+                  type="button"
+                >
+                  <X className="size-3.5" />
+                </button>
+              ) : null}
+              {searchOpen ? (
+                <div className="absolute right-0 top-[calc(100%+0.65rem)] w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-brand-gold/20 bg-white p-2 text-brand-green shadow-luxury">
+                  <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-gold">
+                    {query.trim() ? "Suggestions" : "Popular searches"}
+                  </p>
+                  <div className="grid gap-1">
+                    {suggestions.slice(0, 5).map((item) => (
+                      <button
+                        className="flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition hover:bg-brand-cream"
+                        key={item}
+                        onClick={() => submitSearch(item)}
+                        type="button"
+                      >
+                        <span className="min-w-0 truncate">{item}</span>
+                        <ArrowRight className="size-4 shrink-0 text-brand-gold" />
+                      </button>
+                    ))}
+                    {!query.trim() && recentSearches.length ? (
+                      <div className="border-t border-brand-green/10 pt-1">
+                        {recentSearches.slice(0, 3).map((item) => (
+                          <button
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold text-brand-green/70 transition hover:bg-brand-cream hover:text-brand-green"
+                            key={item}
+                            onClick={() => submitSearch(item)}
+                            type="button"
+                          >
+                            <span className="min-w-0 truncate">{item}</span>
+                            <Search className="size-3.5 shrink-0 text-brand-gold" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </form>
+            <ThemeToggle
+              className={cn(
+                "border-brand-gold/25 text-brand-ivory ring-brand-gold/25 hover:bg-white/10 hover:text-brand-gold",
+                searchOpen && "hidden sm:inline-flex"
+              )}
+              compact
+            />
+            <IconLink className={searchOpen ? "hidden sm:inline-flex" : undefined} count={wishlistCount} href="/wishlist" label="Wishlist">
               <Heart className="size-4" />
             </IconLink>
-            <IconLink count={cartCount} href="/cart" label="Cart">
+            <IconLink className={searchOpen ? "hidden sm:inline-flex" : undefined} count={cartCount} href="/cart" label="Cart">
               <ShoppingBag className="size-4" />
             </IconLink>
-            <IconLink href="/account" label={isAuthenticated ? "Profile" : "Login"}>
+            <IconLink
+              className={searchOpen ? "hidden sm:inline-flex" : undefined}
+              href={isAuthenticated ? "/account" : "/login"}
+              label={isAuthenticated ? "Profile" : "Login"}
+            >
               <UserRound className="size-4" />
             </IconLink>
             <Button
               aria-label="Open menu"
-              className="text-brand-ivory lg:hidden"
+              className={cn("text-brand-ivory lg:hidden", searchOpen && "hidden sm:inline-flex")}
               onClick={() => setMobileOpen(true)}
               size="icon"
               variant="ghost"
@@ -157,57 +274,7 @@ export function Navbar() {
             </Button>
           </div>
         </nav>
-
       </header>
-
-      {searchOpen ? (
-        <div className="fixed inset-x-0 top-[97px] z-[49] border-b border-brand-gold/20 bg-brand-green/96 py-3 text-brand-ivory shadow-luxury backdrop-blur-xl md:top-[107px] md:py-4">
-          <div className="luxury-container">
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitSearch();
-              }}
-            >
-              <div className="relative min-w-0 flex-1">
-                <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-brand-green/50" />
-                <Input
-                  autoFocus
-                  className="bg-white pl-11"
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search products..."
-                  value={query}
-                />
-              </div>
-              <Button aria-label="Submit search" size="icon" type="submit" variant="gold">
-                <Search className="size-4" />
-              </Button>
-              <Button
-                aria-label="Close search"
-                className="text-brand-ivory hover:bg-white/10"
-                onClick={() => setSearchOpen(false)}
-                size="icon"
-                variant="ghost"
-              >
-                <X className="size-4" />
-              </Button>
-            </form>
-            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
-              {suggestions.slice(0, 6).map((item) => (
-                <button
-                  className="shrink-0 rounded-full border border-brand-gold/25 bg-white/10 px-4 py-2 text-xs font-semibold text-brand-ivory transition hover:bg-brand-gold hover:text-brand-green"
-                  key={item}
-                  onClick={() => submitSearch(item)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="right" title="Menu">
         <button
@@ -220,13 +287,13 @@ export function Navbar() {
           </span>
           <span className="min-w-0">
             <span className="block font-serif text-2xl leading-tight">
-              {isAuthenticated ? "Your Profile" : "Login With WhatsApp"}
+              {isAuthenticated ? "Your Profile" : "Login With Email"}
             </span>
             <span className="mt-1 block truncate text-xs text-brand-ivory/68">
               {isAuthenticated
-                ? user?.name || "Manage account, addresses, and orders"
+                ? user?.name || "Manage account, orders, and wishlist"
                 : authReady
-                  ? "Open account, cart, wishlist, and saved addresses"
+                  ? "Open account, cart, wishlist, and orders"
                   : "Checking your account"}
             </span>
           </span>
@@ -249,7 +316,7 @@ export function Navbar() {
             {megaMenu.flatMap((group) => group.items).slice(0, 10).map((item) => (
               <Link
                 className="flex items-center justify-between rounded-full px-1 py-2 text-sm text-brand-ivory/75"
-                href={`/shop?query=${encodeURIComponent(item)}`}
+                href={`/products?query=${encodeURIComponent(item)}`}
                 key={item}
                 onClick={() => setMobileOpen(false)}
               >
@@ -260,30 +327,7 @@ export function Navbar() {
           </div>
         </div>
       </Drawer>
-
     </>
-  );
-}
-
-function IconButton({
-  children,
-  label,
-  onClick
-}: {
-  children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      aria-label={label}
-      className="relative size-9 text-brand-ivory hover:bg-white/10 sm:size-10"
-      onClick={onClick}
-      size="icon"
-      variant="ghost"
-    >
-      {children}
-    </Button>
   );
 }
 

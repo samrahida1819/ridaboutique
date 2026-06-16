@@ -1,21 +1,39 @@
-import { cloudinaryFetch } from "@/lib/cloudinary";
 import type {
   AdminMetric,
+  Banner,
+  Category,
   Collection,
-  CustomOrderRequest,
+  ContactDetails,
   Order,
   Product,
-  Testimonial
+  StoreSettings,
+  Testimonial,
+  WebsiteContent
 } from "@/types/commerce";
 
-const img = (url: string, width = 1400, height = 1800) =>
-  cloudinaryFetch(url, { width, height, crop: "fill", gravity: "auto" });
+export const fallbackCategories: Category[] = [
+  { id: "cat-fashion", name: "Women's Fashion", slug: "womens-fashion", active: true },
+  { id: "cat-hijabs", name: "Hijabs", slug: "hijabs", active: true },
+  { id: "cat-earrings", name: "Custom Earrings", slug: "custom-earrings", active: true },
+  { id: "cat-gifts", name: "Custom Gifts", slug: "custom-gifts", active: true },
+  { id: "cat-accessories", name: "Accessories", slug: "accessories", active: true }
+];
 
-export const heroImage = img(
-  "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=90",
-  1800,
-  1200
-);
+const image = (id: string) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=86`;
+
+export const fallbackBanners: Banner[] = [
+  {
+    id: "banner-occasion-edit",
+    title: "Occasion gifts, made to feel personal.",
+    subtitle:
+      "Reserve custom frames, earrings, cash bouquets, and curated gift boxes with clear pricing before checkout.",
+    imageUrl: image("photo-1519225421980-715cb0215aed"),
+    linkUrl: "/custom-orders",
+    active: true,
+    sortOrder: 1
+  }
+];
 
 export const products: Product[] = [
   {
@@ -23,54 +41,56 @@ export const products: Product[] = [
     slug: "noor-emerald-evening-suit",
     name: "Noor Emerald Evening Suit",
     category: "womens-fashion",
+    categoryId: "cat-fashion",
+    categoryName: "Women's Fashion",
     collection: "new-arrivals",
     price: 7800,
     originalPrice: 9200,
+    salePrice: 7800,
     currency: "INR",
-    image: img("https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=90"),
+    image: image("photo-1496747611176-843222e1e57c"),
+    hoverImage: image("photo-1529139574466-a303027c1d8b"),
     images: [
-      img("https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=90")
+      image("photo-1496747611176-843222e1e57c"),
+      image("photo-1529139574466-a303027c1d8b"),
+      image("photo-1483985988355-763728e1935b")
     ],
-    description: "A refined evening set with fluid tailoring, luminous accents, and a polished boutique finish.",
-    details: ["Premium blended fabric", "Tailored silhouette", "Complimentary Kashmir-wide delivery"],
-    tags: ["Suits", "Evening", "New Arrival"],
+    description:
+      "A refined evening suit with fluid tailoring, a composed silhouette, and a polished boutique finish.",
+    details: ["Premium blended fabric", "Tailored silhouette", "Kashmir-wide delivery"],
+    tags: ["Suits", "Evening", "Featured"],
     rating: 4.9,
     reviewCount: 42,
     stockStatus: "In stock",
     stock: 9,
     isNew: true,
     isFeatured: true,
+    isActive: true,
     returnEligible: true,
-    variants: [
-      { label: "Size", values: ["XS", "S", "M", "L", "XL"] },
-      { label: "Color", values: ["Emerald", "Ivory", "Charcoal"] }
-    ]
+    variants: [{ label: "Size", values: ["XS", "S", "M", "L", "XL"] }]
   },
   {
     id: "prd-002",
     slug: "aurelia-gold-custom-earrings",
     name: "Aurelia Gold Custom Earrings",
     category: "custom-earrings",
+    categoryId: "cat-earrings",
+    categoryName: "Custom Earrings",
     collection: "best-sellers",
     price: 2450,
     currency: "INR",
-    image: img("https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?auto=format&fit=crop&q=90")
-    ],
-    description: "Made-to-order earrings with a delicate gold finish and bespoke stone selection.",
-    details: ["Custom stone options", "Hand-finished", "Custom product: not return eligible"],
+    image: image("photo-1515562141207-7a88fb7ce338"),
+    hoverImage: image("photo-1601121141461-9d6647bca1ed"),
+    images: [image("photo-1515562141207-7a88fb7ce338"), image("photo-1601121141461-9d6647bca1ed")],
+    description: "Made-to-order earrings with a delicate finish and bespoke stone selection.",
+    details: ["Custom finish options", "Gift-ready packaging", "Made to order"],
     tags: ["Custom Earrings", "Accessories", "Gift Ready"],
     rating: 4.8,
     reviewCount: 31,
     stockStatus: "Made to order",
     stock: 5,
     isBestSeller: true,
+    isActive: true,
     returnEligible: false,
     variants: [{ label: "Finish", values: ["Gold", "Pearl", "Crystal"] }]
   },
@@ -79,15 +99,14 @@ export const products: Product[] = [
     slug: "serene-ivory-hijab",
     name: "Serene Ivory Hijab",
     category: "hijabs",
+    categoryId: "cat-hijabs",
+    categoryName: "Hijabs",
     collection: "editor-picks",
     price: 1350,
     currency: "INR",
-    image: img("https://images.unsplash.com/photo-1583391733956-6c78276477e2?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1583391733956-6c78276477e2?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&q=90")
-    ],
+    image: image("photo-1583391733956-6c78276477e2"),
+    hoverImage: image("photo-1525507119028-ed4c629a60a3"),
+    images: [image("photo-1583391733956-6c78276477e2"), image("photo-1525507119028-ed4c629a60a3")],
     description: "A soft ivory hijab designed for everyday polish and occasion-ready elegance.",
     details: ["Breathable soft weave", "Lightweight drape", "Return eligible when unused"],
     tags: ["Hijabs", "Essentials", "Ivory"],
@@ -96,6 +115,7 @@ export const products: Product[] = [
     stockStatus: "In stock",
     stock: 18,
     isFeatured: true,
+    isActive: true,
     returnEligible: true,
     variants: [{ label: "Color", values: ["Ivory", "Sage", "Black", "Rose"] }]
   },
@@ -103,41 +123,39 @@ export const products: Product[] = [
     id: "prd-004",
     slug: "signature-cash-bouquet",
     name: "Signature Cash Bouquet",
-    category: "cash-bouquets",
+    category: "custom-gifts",
+    categoryId: "cat-gifts",
+    categoryName: "Custom Gifts",
     collection: "custom-creations",
     price: 5000,
     currency: "INR",
-    image: img("https://images.unsplash.com/photo-1591886960571-74d43a9d4166?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1591886960571-74d43a9d4166?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&q=90")
-    ],
+    image: image("photo-1591886960571-74d43a9d4166"),
+    hoverImage: image("photo-1519225421980-715cb0215aed"),
+    images: [image("photo-1591886960571-74d43a9d4166"), image("photo-1519225421980-715cb0215aed")],
     description: "A premium cash bouquet arrangement for weddings, engagements, birthdays, and surprise gifting.",
-    details: ["Budget-customizable", "Personal message card", "Custom product: not return eligible"],
+    details: ["Budget-customizable", "Personal message card", "Made to order"],
     tags: ["Cash Bouquets", "Custom", "Gifting"],
     rating: 5,
     reviewCount: 18,
     stockStatus: "Made to order",
     stock: 6,
     isBestSeller: true,
-    returnEligible: false,
-    variants: [{ label: "Style", values: ["Classic", "Ivory Wrap", "Emerald Wrap"] }]
+    isActive: true,
+    returnEligible: false
   },
   {
     id: "prd-005",
     slug: "editorial-black-dress",
     name: "Editorial Black Dress",
     category: "womens-fashion",
+    categoryId: "cat-fashion",
+    categoryName: "Women's Fashion",
     collection: "editor-picks",
     price: 6400,
     currency: "INR",
-    image: img("https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=90")
-    ],
+    image: image("photo-1515372039744-b8f02a3ae446"),
+    hoverImage: image("photo-1509631179647-0177331693ae"),
+    images: [image("photo-1515372039744-b8f02a3ae446"), image("photo-1509631179647-0177331693ae")],
     description: "A clean-lined statement dress with a composed silhouette and high-contrast finish.",
     details: ["Occasion silhouette", "Soft inner lining", "Return eligible"],
     tags: ["Dresses", "Occasion", "Editor's Pick"],
@@ -146,176 +164,32 @@ export const products: Product[] = [
     stockStatus: "Low stock",
     stock: 3,
     isFeatured: true,
+    isActive: true,
     returnEligible: true,
     variants: [{ label: "Size", values: ["S", "M", "L"] }]
   },
   {
     id: "prd-006",
-    slug: "heirloom-memory-frame",
-    name: "Heirloom Memory Frame",
-    category: "custom-frames",
-    collection: "custom-creations",
-    price: 3200,
-    currency: "INR",
-    image: img("https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&q=90")
-    ],
-    description: "A personalized frame crafted for portraits, wedding memories, milestone gifts, and keepsakes.",
-    details: ["Layout proof before making", "Custom text support", "Custom product: not return eligible"],
-    tags: ["Custom Frames", "Personalized", "Gifts"],
-    rating: 4.9,
-    reviewCount: 21,
-    stockStatus: "Made to order",
-    stock: 12,
-    isNew: true,
-    returnEligible: false,
-    variants: [{ label: "Frame", values: ["Gold", "Black", "Walnut"] }]
-  },
-  {
-    id: "prd-007",
-    slug: "velvet-occasion-clutch",
-    name: "Velvet Occasion Clutch",
-    category: "accessories",
-    collection: "best-sellers",
-    price: 2150,
-    currency: "INR",
-    image: img("https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=90")
-    ],
-    description: "A structured velvet clutch with a luminous clasp and refined evening scale.",
-    details: ["Compact interior", "Detachable chain", "Return eligible"],
-    tags: ["Accessories", "Clutch", "Best Seller"],
-    rating: 4.6,
-    reviewCount: 24,
-    stockStatus: "In stock",
-    stock: 10,
-    isBestSeller: true,
-    returnEligible: true
-  },
-  {
-    id: "prd-008",
     slug: "personalized-gift-box",
     name: "Personalized Gift Box",
     category: "custom-gifts",
+    categoryId: "cat-gifts",
+    categoryName: "Custom Gifts",
     collection: "custom-creations",
     price: 4100,
     currency: "INR",
-    image: img("https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=90")
-    ],
+    image: image("photo-1512909006721-3d6018887383"),
+    hoverImage: image("photo-1549465220-1a8b9238cd48"),
+    images: [image("photo-1512909006721-3d6018887383"), image("photo-1549465220-1a8b9238cd48")],
     description: "A curated gift box with personalization, premium wrapping, and message card support.",
-    details: ["Custom contents", "Name/message personalization", "Custom product: not return eligible"],
+    details: ["Custom contents", "Name/message personalization", "Made to order"],
     tags: ["Custom Gifts", "Personalized", "Curated"],
     rating: 5,
     reviewCount: 15,
     stockStatus: "Made to order",
     stock: 7,
     isFeatured: true,
-    returnEligible: false
-  },
-  {
-    id: "prd-009",
-    slug: "satin-sage-hijab-set",
-    name: "Satin Sage Hijab Set",
-    category: "hijabs",
-    collection: "new-arrivals",
-    price: 1900,
-    currency: "INR",
-    image: img("https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1583391733981-7f9f8a0f8253?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1583391733981-7f9f8a0f8253?auto=format&fit=crop&q=90")
-    ],
-    description: "A polished hijab set with a subtle sheen, designed for gifting or refined everyday wear.",
-    details: ["Includes matching undercap", "Soft satin finish", "Return eligible when unused"],
-    tags: ["Hijabs", "Sage", "New Arrival"],
-    rating: 4.7,
-    reviewCount: 19,
-    stockStatus: "In stock",
-    stock: 15,
-    isNew: true,
-    returnEligible: true
-  },
-  {
-    id: "prd-010",
-    slug: "pearl-line-earrings",
-    name: "Pearl Line Earrings",
-    category: "custom-earrings",
-    collection: "editor-picks",
-    price: 2800,
-    currency: "INR",
-    image: img("https://images.unsplash.com/photo-1573408301185-9146fe634ad0?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1611652022419-a9419f74343d?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1573408301185-9146fe634ad0?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1611652022419-a9419f74343d?auto=format&fit=crop&q=90")
-    ],
-    description: "Minimal pearl-line earrings that can be customized for bridal, gifting, or occasion styling.",
-    details: ["Pearl and crystal options", "Gift-ready packaging", "Custom product: not return eligible"],
-    tags: ["Pearl", "Custom Earrings", "Editor's Pick"],
-    rating: 4.9,
-    reviewCount: 28,
-    stockStatus: "Made to order",
-    stock: 8,
-    returnEligible: false
-  },
-  {
-    id: "prd-011",
-    slug: "ivory-day-dress",
-    name: "Ivory Day Dress",
-    category: "womens-fashion",
-    collection: "new-arrivals",
-    price: 5400,
-    currency: "INR",
-    image: img("https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=90")
-    ],
-    description: "A quiet luxury day dress with clean volume, easy movement, and elevated finishing.",
-    details: ["Relaxed fit", "Lined body", "Return eligible"],
-    tags: ["Dresses", "Ivory", "New Arrival"],
-    rating: 4.8,
-    reviewCount: 13,
-    stockStatus: "In stock",
-    stock: 11,
-    isNew: true,
-    returnEligible: true,
-    variants: [{ label: "Size", values: ["XS", "S", "M", "L"] }]
-  },
-  {
-    id: "prd-012",
-    slug: "gold-ribbon-gift-hamper",
-    name: "Gold Ribbon Gift Hamper",
-    category: "custom-gifts",
-    collection: "best-sellers",
-    price: 3600,
-    currency: "INR",
-    image: img("https://images.unsplash.com/photo-1607344645866-009c320f1687?auto=format&fit=crop&q=90"),
-    hoverImage: img("https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=90"),
-    images: [
-      img("https://images.unsplash.com/photo-1607344645866-009c320f1687?auto=format&fit=crop&q=90"),
-      img("https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=90")
-    ],
-    description: "A refined ready-to-customize hamper for celebrations, corporate gifting, and family occasions.",
-    details: ["Curated contents", "Personal card", "Custom product: not return eligible"],
-    tags: ["Custom Gifts", "Best Seller", "Hamper"],
-    rating: 4.9,
-    reviewCount: 33,
-    stockStatus: "Made to order",
-    stock: 4,
-    isBestSeller: true,
+    isActive: true,
     returnEligible: false
   }
 ];
@@ -325,10 +199,10 @@ export const collections: Collection[] = [
     id: "col-001",
     slug: "new-arrivals",
     title: "New Arrivals",
-    eyebrow: "Fresh from the boutique",
+    eyebrow: "Fresh edit",
     description: "Elegant wardrobe and gifting pieces selected for the current season.",
-    image: img("https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=90", 1200, 900),
-    productCount: 4,
+    image: image("photo-1483985988355-763728e1935b"),
+    productCount: 2,
     featured: true
   },
   {
@@ -337,28 +211,18 @@ export const collections: Collection[] = [
     title: "Best Sellers",
     eyebrow: "Client favourites",
     description: "The pieces most often chosen for polished occasions and memorable gifts.",
-    image: img("https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&q=90", 1200, 900),
-    productCount: 4,
+    image: image("photo-1607082349566-187342175e2f"),
+    productCount: 2,
     featured: true
   },
   {
     id: "col-003",
-    slug: "editor-picks",
-    title: "Editor's Picks",
-    eyebrow: "Rida edit",
-    description: "A quieter, more considered edit of refined boutique essentials.",
-    image: img("https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=90", 1200, 900),
-    productCount: 4,
-    featured: true
-  },
-  {
-    id: "col-004",
     slug: "custom-creations",
     title: "Custom Creations",
     eyebrow: "Made for you",
     description: "Frames, bouquets, earrings, and personalized gifts shaped around your brief.",
-    image: img("https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&q=90", 1200, 900),
-    productCount: 4,
+    image: image("photo-1512909006721-3d6018887383"),
+    productCount: 2,
     featured: true
   }
 ];
@@ -367,7 +231,7 @@ export const testimonials: Testimonial[] = [
   {
     name: "Aaliya",
     location: "Srinagar",
-    quote: "The packaging, finishing, and delivery felt truly premium. It did not feel like a rushed online order.",
+    quote: "The packaging, finishing, and delivery felt premium without being overdone.",
     rating: 5
   },
   {
@@ -379,7 +243,7 @@ export const testimonials: Testimonial[] = [
   {
     name: "Zoya",
     location: "Anantnag",
-    quote: "Elegant, clean, and easy. Rida Boutique has become my go-to for gifts across Kashmir.",
+    quote: "Clean ordering, calm support, and beautiful details. It has become my go-to for gifts.",
     rating: 5
   }
 ];
@@ -389,86 +253,119 @@ export const sampleOrders: Order[] = [
     id: "RB-24018",
     date: "2026-06-03",
     total: 7800,
-    status: "Dispatched",
+    status: "Shipped",
     trackingId: "KMR-XP-9012",
-    items: [{ name: "Noor Emerald Evening Suit", quantity: 1 }]
+    paymentMethod: "cod",
+    items: [{ name: "Noor Emerald Evening Suit", quantity: 1, price: 7800 }]
   },
   {
     id: "RB-24011",
     date: "2026-05-22",
-    total: 6350,
+    total: 6550,
     status: "Delivered",
     trackingId: "KMR-XP-8894",
+    paymentMethod: "cod",
     items: [
-      { name: "Aurelia Gold Custom Earrings", quantity: 1 },
-      { name: "Personalized Gift Box", quantity: 1 }
+      { name: "Aurelia Gold Custom Earrings", quantity: 1, price: 2450 },
+      { name: "Personalized Gift Box", quantity: 1, price: 4100 }
     ]
-  }
-];
-
-export const customRequests: CustomOrderRequest[] = [
-  {
-    id: "CO-1049",
-    customer: "Ifra Jan",
-    type: "Cash Bouquet",
-    budget: "Rs 8,000",
-    status: "Pending",
-    requestedFor: "2026-06-20",
-    internalNote: "Client prefers ivory wrap and gold ribbon."
-  },
-  {
-    id: "CO-1044",
-    customer: "Mariya",
-    type: "Custom Frame",
-    budget: "Rs 3,500",
-    status: "Approved",
-    requestedFor: "2026-06-18",
-    internalNote: "Price approved, awaiting payment."
-  },
-  {
-    id: "CO-1039",
-    customer: "Sana",
-    type: "Personalized Gift",
-    budget: "Rs 5,000",
-    status: "Converted",
-    requestedFor: "2026-06-12",
-    internalNote: "Converted to order RB-24021."
   }
 ];
 
 export const adminMetrics: AdminMetric[] = [
   { label: "Total Revenue", value: "Rs 8.42L", delta: "+18.4%" },
   { label: "Total Orders", value: "312", delta: "+11.2%" },
-  { label: "Customers", value: "1,284", delta: "+24.1%" },
-  { label: "Products", value: "86", delta: "+8 live" }
+  { label: "Total Customers", value: "1,284", delta: "+24.1%" },
+  { label: "Total Products", value: "86", delta: "+8 live" }
 ];
 
-export const trendingSearches = [
-  "custom earrings",
-  "cash bouquet",
-  "emerald suit",
-  "personalized gift",
-  "ivory hijab"
-];
+export const fallbackContactDetails: ContactDetails = {
+  storeName: "Rida Boutique",
+  email: "care@ridaboutique.in",
+  primaryPhone: "+91 70000 00000",
+  secondaryPhone: "+91 70000 00001",
+  whatsappNumber: "+91 70000 00000",
+  businessAddress: "Srinagar, Jammu and Kashmir, India",
+  googleMapsLink: "https://maps.google.com",
+  workingHours: "Monday to Saturday, 10:00 AM - 7:00 PM",
+  instagramLink: "https://instagram.com",
+  facebookLink: "https://facebook.com",
+  youtubeLink: "https://youtube.com"
+};
+
+export const fallbackSettings: StoreSettings = {
+  storeName: "Rida Boutique",
+  logoUrl: "",
+  deliveryCharges: 120,
+  codEnabled: true,
+  defaultTheme: "light",
+  instagramLink: fallbackContactDetails.instagramLink,
+  facebookLink: fallbackContactDetails.facebookLink,
+  youtubeLink: fallbackContactDetails.youtubeLink
+};
+
+export const fallbackWebsiteContent: WebsiteContent = {
+  about:
+    "Rida Boutique is a premium boutique for elegant womenswear, hijabs, accessories, and thoughtful custom gifting with clear checkout and custom-order approval.",
+  faq:
+    "How do I place an order?\nAdd items to cart, choose Cash on Delivery, and place your order.\n\nCan I request custom products?\nYes. Contact us with your reference, budget, and date.\n\nHow long does delivery take?\nReady products usually ship within 2-4 business days.",
+  privacy:
+    "We collect only the information needed to create accounts, process orders, deliver products, and support customers. We do not sell customer data.",
+  terms:
+    "By using Rida Boutique, you agree to provide accurate account and delivery information, pay applicable charges, and follow the stated return and shipping policies.",
+  shipping:
+    "Orders are prepared after confirmation. Delivery charges are shown at checkout. Delivery timelines depend on product availability and destination.",
+  returns:
+    "Eligible unused products can be returned within the stated return window. Custom, personalized, and made-to-order products are not return eligible unless defective."
+};
+
+export const trendingSearches = ["hijab", "custom earrings", "cash bouquet", "evening suit", "gift box"];
 
 export const megaMenu = [
-  {
-    title: "Fashion",
-    items: ["Suits", "Dresses", "Hijabs"]
-  },
-  {
-    title: "Accessories",
-    items: ["Custom Earrings", "Gift Items"]
-  },
-  {
-    title: "Custom Creations",
-    items: ["Custom Frames", "Cash Bouquets", "Personalized Gifts"]
-  },
-  {
-    title: "Featured",
-    items: ["New Arrivals", "Best Sellers", "Editor's Picks"]
-  }
+  { title: "Shop", items: fallbackCategories.map((category) => category.name) },
+  { title: "Support", items: ["Shipping", "Returns", "FAQ", "Contact"] }
 ];
+
+export function normalizeProduct(row: Record<string, unknown>): Product {
+  const imageUrls = Array.isArray(row.image_urls) ? (row.image_urls as string[]) : [];
+  const category =
+    typeof row.category_slug === "string"
+      ? row.category_slug
+      : typeof row.category === "string"
+        ? row.category
+        : "uncategorized";
+  const price = Number(row.price || 0);
+  const salePrice = row.sale_price === null || row.sale_price === undefined ? null : Number(row.sale_price);
+
+  return {
+    id: String(row.id),
+    slug: String(row.slug || row.id),
+    name: String(row.name || "Untitled product"),
+    category,
+    categoryId: typeof row.category_id === "string" ? row.category_id : undefined,
+    categoryName: typeof row.category_name === "string" ? row.category_name : undefined,
+    collection: "catalog",
+    price,
+    originalPrice: salePrice && salePrice < price ? price : undefined,
+    salePrice,
+    currency: "INR",
+    image: imageUrls[0] || image("photo-1483985988355-763728e1935b"),
+    hoverImage: imageUrls[1] || imageUrls[0] || image("photo-1529139574466-a303027c1d8b"),
+    images: imageUrls.length ? imageUrls : [image("photo-1483985988355-763728e1935b")],
+    description: String(row.description || ""),
+    details: [],
+    tags: [],
+    rating: 0,
+    reviewCount: 0,
+    stockStatus: Number(row.stock || 0) > 0 ? "In stock" : "Sold out",
+    stock: Number(row.stock || 0),
+    isFeatured: Boolean(row.featured),
+    isActive: row.active !== false,
+    returnEligible: true,
+    createdAt: typeof row.created_at === "string" ? row.created_at : undefined,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined
+  };
+}
 
 export function getProductBySlug(slug: string) {
   return products.find((product) => product.slug === slug);
@@ -483,7 +380,5 @@ export function getProductsByCollection(slug: string) {
 }
 
 export function getRelatedProducts(product: Product) {
-  return products
-    .filter((candidate) => candidate.id !== product.id && candidate.category === product.category)
-    .slice(0, 4);
+  return products.filter((candidate) => candidate.id !== product.id && candidate.category === product.category).slice(0, 4);
 }

@@ -16,12 +16,13 @@ export function ProductCard({ product }: { product: Product }) {
   const { toast } = useToast();
   const wishlisted = isWishlisted(product.id);
   const soldOut = product.stockStatus === "Sold out";
+  const activePrice = product.salePrice && product.salePrice > 0 ? product.salePrice : product.price;
   const compareAtPrice =
-    product.originalPrice || Math.ceil((product.price * 1.14) / 100) * 100;
+    product.originalPrice || (activePrice < product.price ? product.price : Math.ceil((activePrice * 1.14) / 100) * 100);
   const rating = useProductRating(product);
   const discountPercent = Math.max(
     0,
-    Math.round(((compareAtPrice - product.price) / compareAtPrice) * 100)
+    Math.round(((compareAtPrice - activePrice) / compareAtPrice) * 100)
   );
 
   return (
@@ -31,7 +32,7 @@ export function ProductCard({ product }: { product: Product }) {
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="relative aspect-square overflow-hidden rounded-lg bg-brand-cream sm:rounded-xl">
-        <Link aria-label={`View ${product.name}`} href={`/product/${product.slug}`}>
+        <Link aria-label={`View ${product.name}`} href={`/products/${product.slug}`}>
           <Image
             alt={product.name}
             className="object-cover transition duration-700 group-hover:scale-105 group-hover:opacity-0"
@@ -70,10 +71,7 @@ export function ProductCard({ product }: { product: Product }) {
         </Button>
       </div>
       <div className="px-1 pb-1 pt-2.5 sm:pt-3">
-        <Link
-          className="block"
-          href={`/product/${product.slug}`}
-        >
+        <Link className="block" href={`/products/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-[2.35rem] font-serif text-[15px] leading-tight text-brand-green transition group-hover:text-brand-gold sm:min-h-[2.9rem] sm:text-xl">
             {product.name}
           </h3>
@@ -84,11 +82,13 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:mt-2">
             <p className="text-sm font-bold text-brand-charcoal sm:text-base">
-              {formatCurrency(product.price)}
+              {formatCurrency(activePrice)}
             </p>
-            <p className="text-[11px] text-brand-charcoal/42 line-through sm:text-xs">
-              {formatCurrency(compareAtPrice)}
-            </p>
+            {compareAtPrice > activePrice ? (
+              <p className="text-[11px] text-brand-charcoal/42 line-through sm:text-xs">
+                {formatCurrency(compareAtPrice)}
+              </p>
+            ) : null}
           </div>
         </Link>
         <Button
