@@ -131,7 +131,7 @@ export function Navbar() {
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-[33px] z-50 border-b transition-all duration-500 ease-luxury",
+          "fixed inset-x-0 top-0 z-50 border-b transition-all duration-500 ease-luxury",
           isTransparent ? "border-transparent bg-transparent" : "glass-green"
         )}
       >

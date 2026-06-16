@@ -39,6 +39,8 @@ type AuthContextValue = {
   requestLogin: (reason?: string) => boolean;
   testingLogin: (role?: ProfileRole) => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  sendEmailOtp: (email: string) => Promise<{ error?: string; message?: string }>;
+  verifyEmailOtp: (email: string, token: string) => Promise<{ error?: string; message?: string }>;
   signUp: (input: SignUpInput) => Promise<{ error?: string; message?: string }>;
   resetPassword: (email: string) => Promise<{ error?: string; message?: string }>;
   updateProfile: (profile: { fullName?: string; phone?: string; address?: string }) => Promise<{ error?: string }>;
@@ -48,6 +50,17 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const TESTING_USER_KEY = "rida-testing-user";
+const AUTH_TIMEOUT_MS = 5000;
+
+function withAuthTimeout<T>(promise: PromiseLike<T>, label: string) {
+  let timeoutId: number;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(`${label} timed out.`)), AUTH_TIMEOUT_MS);
+  });
+
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => window.clearTimeout(timeoutId));
+}
 
 function profileFromUser(user: User, role: ProfileRole = "customer"): AuthUser {
   return {
@@ -81,21 +94,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, phone, address, role")
-      .eq("id", supabaseUser.id)
-      .maybeSingle();
+    const { data } = await withAuthTimeout(
+      supabase
+        .from("profiles")
+        .select("id, email, full_name, phone, address, role")
+        .eq("id", supabaseUser.id)
+        .maybeSingle(),
+      "Profile load"
+    ).catch(() => ({ data: null }));
 
     if (!data) {
       const fallback = profileFromUser(supabaseUser);
-      await supabase.from("profiles").upsert({
-        id: fallback.id,
-        email: fallback.email,
-        full_name: fallback.name,
-        phone: fallback.phone || null,
-        role: "customer"
-      });
+      await withAuthTimeout(
+        supabase.from("profiles").upsert({
+          id: fallback.id,
+          email: fallback.email,
+          full_name: fallback.name,
+          phone: fallback.phone || null,
+          role: "customer"
+        }),
+        "Profile create"
+      ).catch(() => null);
       setUser(fallback);
       return;
     }
@@ -130,11 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient();
     let active = true;
 
-    supabase.auth.getUser().then(({ data }) => {
+    withAuthTimeout(supabase.auth.getUser(), "Auth check").then(({ data }) => {
       if (!active) {
         return;
       }
       void loadProfile(data.user).finally(() => setAuthReady(true));
+    }).catch(() => {
+      if (active) {
+        setUser(null);
+        setAuthReady(true);
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -179,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase.auth.getUser();
+    const { data } = await withAuthTimeout(supabase.auth.getUser(), "Profile refresh");
     await loadProfile(data.user);
   }, [loadProfile]);
 
@@ -198,6 +222,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return {};
       } catch (error) {
         return { error: error instanceof Error ? error.message : "Unable to sign in." };
+      }
+    },
+    [refreshProfileInternal]
+  );
+
+  const sendEmailOtp = useCallback(async (email: string) => {
+    try {
+      window.localStorage.removeItem(TESTING_USER_KEY);
+
+      if (!hasSupabaseConfig()) {
+        return { error: "Supabase is not configured for email OTP." };
+      }
+
+      const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}/login`;
+      const { error } = await withAuthTimeout(
+        getSupabaseBrowserClient().auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: redirectTo,
+            shouldCreateUser: true
+          }
+        }),
+        "Email OTP"
+      );
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return { message: "OTP sent. Check your email." };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unable to send OTP." };
+    }
+  }, []);
+
+  const verifyEmailOtp = useCallback(
+    async (email: string, token: string) => {
+      try {
+        window.localStorage.removeItem(TESTING_USER_KEY);
+
+        if (!hasSupabaseConfig()) {
+          return { error: "Supabase is not configured for email OTP." };
+        }
+
+        const { error } = await withAuthTimeout(
+          getSupabaseBrowserClient().auth.verifyOtp({
+            email,
+            token,
+            type: "email"
+          }),
+          "OTP verify"
+        );
+
+        if (error) {
+          return { error: error.message };
+        }
+
+        await refreshProfileInternal();
+        return { message: "OTP verified." };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : "Unable to verify OTP." };
       }
     },
     [refreshProfileInternal]
@@ -223,13 +308,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.user) {
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          phone: phone || null,
-          role: "customer"
-        });
+        await withAuthTimeout(
+          supabase.from("profiles").upsert({
+            id: data.user.id,
+            email,
+            full_name: fullName,
+            phone: phone || null,
+            role: "customer"
+          }),
+          "Profile signup"
+        ).catch(() => null);
         await loadProfile(data.user);
       }
 
@@ -266,7 +354,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     if (hasSupabaseConfig()) {
-      await getSupabaseBrowserClient().auth.signOut();
+      await withAuthTimeout(getSupabaseBrowserClient().auth.signOut(), "Testing sign out").catch(() => null);
     }
 
     window.localStorage.setItem(TESTING_USER_KEY, JSON.stringify(testingUser));
@@ -284,9 +372,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user.id.startsWith("testing-")) {
           const nextUser = {
             ...user,
-            name: profile.fullName || user.name,
-            phone: profile.phone || user.phone,
-            address: profile.address || user.address
+            name: profile.fullName !== undefined ? profile.fullName : user.name,
+            phone: profile.phone !== undefined ? profile.phone : user.phone,
+            address: profile.address !== undefined ? profile.address : user.address
           };
           window.localStorage.setItem(TESTING_USER_KEY, JSON.stringify(nextUser));
           setUser(nextUser);
@@ -297,9 +385,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from("profiles").upsert({
           id: user.id,
           email: user.email,
-          full_name: profile.fullName || user.name,
-          phone: profile.phone || user.phone || null,
-          address: profile.address || null,
+          full_name: profile.fullName !== undefined ? profile.fullName : user.name,
+          phone: profile.phone !== undefined ? profile.phone || null : user.phone || null,
+          address: profile.address !== undefined ? profile.address || null : user.address || null,
           role: user.role
         });
 
@@ -319,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     window.localStorage.removeItem(TESTING_USER_KEY);
     if (hasSupabaseConfig()) {
-      await getSupabaseBrowserClient().auth.signOut();
+      await withAuthTimeout(getSupabaseBrowserClient().auth.signOut(), "Sign out").catch(() => null);
     }
     setUser(null);
     router.push("/");
@@ -333,13 +421,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestLogin,
       testingLogin,
       signIn,
+      sendEmailOtp,
+      verifyEmailOtp,
       signUp,
       resetPassword,
       updateProfile,
       refreshProfile: refreshProfileInternal,
       signOut
     }),
-    [authReady, refreshProfileInternal, requestLogin, resetPassword, signIn, signOut, signUp, testingLogin, updateProfile, user]
+    [
+      authReady,
+      refreshProfileInternal,
+      requestLogin,
+      resetPassword,
+      sendEmailOtp,
+      signIn,
+      signOut,
+      signUp,
+      testingLogin,
+      updateProfile,
+      user,
+      verifyEmailOtp
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -51,7 +51,6 @@ export type AdminSettings = {
   contactIntro?: string;
   deliveryFee: number;
   freeShippingAt: number;
-  codEnabled: boolean;
   whatsappAlerts: boolean;
   lowStockEmail: boolean;
   maintenanceMode: boolean;
@@ -66,7 +65,6 @@ export const defaultAdminSettings: AdminSettings = {
   contactIntro: "Order support, custom order help, returns, collaborations, and WhatsApp assistance.",
   deliveryFee: 120,
   freeShippingAt: 4999,
-  codEnabled: true,
   whatsappAlerts: true,
   lowStockEmail: true,
   maintenanceMode: false

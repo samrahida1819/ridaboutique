@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CheckCircle2, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { LoginRequired, useAuth } from "@/components/providers/auth-provider";
 import { useShop } from "@/components/providers/shop-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
 import { useStoreSettings } from "@/hooks/use-store-data";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/utils";
-import type { Order } from "@/types/commerce";
+import type { Order, SavedAddress } from "@/types/commerce";
+
+const DEFAULT_STATE = "Jammu and Kashmir";
 
 type CheckoutForm = {
   fullName: string;
@@ -19,12 +21,44 @@ type CheckoutForm = {
   city: string;
   state: string;
   pincode: string;
-  paymentMethod: "cod";
 };
+
+function savedAddressLine(address: SavedAddress) {
+  const compact = [address.landmark, address.district, address.pincode]
+    .map((item) => item?.trim())
+    .filter(Boolean)
+    .join(", ");
+  const existingAddress = address.address?.trim();
+
+  if (existingAddress && existingAddress !== compact) {
+    return [existingAddress, compact].filter(Boolean).join(", ");
+  }
+
+  return compact;
+}
+
+function manualAddressLine(form: CheckoutForm) {
+  return [form.city, form.state, form.pincode]
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function checkoutFormFromSavedAddress(address: SavedAddress, email: string): CheckoutForm {
+  return {
+    fullName: address.fullName,
+    email,
+    phone: address.phone,
+    address: savedAddressLine(address),
+    city: address.district,
+    state: DEFAULT_STATE,
+    pincode: address.pincode
+  };
+}
 
 export function CheckoutClient() {
   const { authReady, isAuthenticated, user } = useAuth();
-  const { addOrder, cart, clearCart, subtotal } = useShop();
+  const { addOrder, cart, clearCart, savedAddresses, subtotal } = useShop();
   const settings = useStoreSettings();
   const [form, setForm] = useState<CheckoutForm>({
     fullName: user?.name || "",
@@ -32,19 +66,55 @@ export function CheckoutClient() {
     phone: user?.phone || "",
     address: "",
     city: "",
-    state: "",
-    pincode: "",
-    paymentMethod: "cod"
+    state: DEFAULT_STATE,
+    pincode: ""
   });
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [placing, setPlacing] = useState(false);
   const [confirmation, setConfirmation] = useState<Order | null>(null);
 
   const deliveryCharges = settings.deliveryCharges || 0;
   const total = useMemo(() => subtotal + deliveryCharges, [deliveryCharges, subtotal]);
+  const selectedAddress = useMemo(
+    () => savedAddresses.find((address) => address.id === selectedAddressId),
+    [savedAddresses, selectedAddressId]
+  );
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      fullName: current.fullName || user.name || "",
+      email: current.email || user.email || "",
+      phone: current.phone || user.phone || ""
+    }));
+  }, [user]);
+
+  useEffect(() => {
+    const defaultAddress = savedAddresses.find((address) => address.isDefault) || savedAddresses[0];
+
+    if (!defaultAddress || selectedAddressId || form.city || form.pincode) {
+      return;
+    }
+
+    setSelectedAddressId(defaultAddress.id);
+    setForm((current) => checkoutFormFromSavedAddress(defaultAddress, current.email || user?.email || ""));
+  }, [form.city, form.pincode, savedAddresses, selectedAddressId, user?.email]);
 
   function updateField(field: keyof CheckoutForm, value: string) {
+    if (field === "phone" || field === "city" || field === "state" || field === "pincode") {
+      setSelectedAddressId(null);
+    }
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function applySavedAddress(address: SavedAddress) {
+    setSelectedAddressId(address.id);
+    setForm((current) => checkoutFormFromSavedAddress(address, current.email || user?.email || ""));
   }
 
   async function placeOrder(event: React.FormEvent<HTMLFormElement>) {
@@ -52,7 +122,7 @@ export function CheckoutClient() {
     setError("");
 
     if (!user) {
-      setError("Please sign in before checkout.");
+      setError("Please sign in before buying.");
       return;
     }
 
@@ -61,14 +131,9 @@ export function CheckoutClient() {
       return;
     }
 
-    if (!settings.codEnabled) {
-      setError("Cash on Delivery is currently disabled.");
-      return;
-    }
-
-    const requiredFields: Array<keyof CheckoutForm> = ["fullName", "email", "phone", "address", "city", "state", "pincode"];
+    const requiredFields: Array<keyof CheckoutForm> = ["fullName", "email", "phone", "city", "state", "pincode"];
     if (requiredFields.some((field) => !form[field].trim())) {
-      setError("Please fill all checkout fields.");
+      setError("Please fill all delivery details.");
       return;
     }
 
@@ -76,6 +141,7 @@ export function CheckoutClient() {
 
     try {
       const orderNumber = `RB-${Date.now().toString().slice(-7)}`;
+      const deliveryAddress = selectedAddress ? savedAddressLine(selectedAddress) : manualAddressLine(form);
       const localOrder: Order = {
         id: orderNumber,
         date: new Date().toISOString(),
@@ -84,11 +150,10 @@ export function CheckoutClient() {
         customerName: form.fullName,
         email: form.email,
         phone: form.phone,
-        address: form.address,
+        address: deliveryAddress,
         city: form.city,
         state: form.state,
         pincode: form.pincode,
-        paymentMethod: "cod",
         items: cart.map((item) => ({
           productId: item.product.id,
           name: item.product.name,
@@ -107,11 +172,10 @@ export function CheckoutClient() {
             full_name: form.fullName,
             email: form.email,
             phone: form.phone,
-            address: form.address,
+            address: deliveryAddress,
             city: form.city,
             state: form.state,
             pincode: form.pincode,
-            payment_method: "cod",
             payment_status: "pending",
             status: "Pending",
             subtotal,
@@ -156,13 +220,13 @@ export function CheckoutClient() {
   }
 
   if (!authReady) {
-    return <div className="app-container pb-12 pt-32 md:pt-40">Loading checkout...</div>;
+    return <div className="app-container pb-12 pt-32 md:pt-40">Loading buy now...</div>;
   }
 
   if (!isAuthenticated) {
     return (
       <div className="app-container pb-12 pt-32 md:pt-40">
-        <LoginRequired description="Sign in with email and password before checkout." title="Checkout requires login" />
+        <LoginRequired description="Sign in with email and password before buying." title="Buy now requires login" />
       </div>
     );
   }
@@ -174,7 +238,7 @@ export function CheckoutClient() {
           <CheckCircle2 className="mx-auto size-12" />
           <h1 className="mt-5 text-2xl font-semibold">Order placed</h1>
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
-            Your order {confirmation.id} has been placed with Cash on Delivery.
+            Your order {confirmation.id} has been placed.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <ButtonLink href="/orders" variant="outline">View orders</ButtonLink>
@@ -187,9 +251,64 @@ export function CheckoutClient() {
 
   return (
     <section className="app-container pb-12 pt-32 md:pt-40">
-      <h1 className="text-3xl font-semibold tracking-tight">Checkout</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Buy now</h1>
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
         <form className="grid gap-5 rounded-lg border border-stone-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950" onSubmit={placeOrder}>
+          <div className="rounded-lg border border-stone-200 p-4 dark:border-neutral-800">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold">Saved address</h2>
+                <p className="mt-1 text-sm text-stone-500">Select a saved address or fill the details below.</p>
+              </div>
+              <ButtonLink className="w-full sm:w-auto" href="/account" variant="secondary">
+                Add address
+              </ButtonLink>
+            </div>
+
+            {savedAddresses.length ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {savedAddresses.map((address) => {
+                  const selected = selectedAddressId === address.id;
+
+                  return (
+                    <button
+                      aria-pressed={selected}
+                      className={`rounded-lg border p-3 text-left transition ${
+                        selected
+                          ? "border-brand-gold bg-brand-cream text-brand-green"
+                          : "border-stone-200 hover:border-brand-gold dark:border-neutral-800"
+                      }`}
+                      key={address.id}
+                      onClick={() => applySavedAddress(address)}
+                      type="button"
+                    >
+                      <span className="flex items-start justify-between gap-3">
+                        <span>
+                          <span className="block font-serif text-xl">{address.label}</span>
+                          <span className="mt-1 block text-sm font-semibold">{address.fullName}</span>
+                        </span>
+                        <span className={`mt-1 grid size-5 place-items-center rounded-full border ${selected ? "border-brand-green bg-brand-green" : "border-stone-300"}`}>
+                          {selected ? <span className="size-2 rounded-full bg-brand-ivory" /> : null}
+                        </span>
+                      </span>
+                      <span className="mt-2 block text-sm text-brand-charcoal/65">{address.phone}</span>
+                      <span className="mt-1 block text-sm text-brand-charcoal/65">{savedAddressLine(address)}</span>
+                      {address.isDefault ? (
+                        <span className="mt-3 inline-flex rounded-full bg-brand-gold px-2 py-1 text-[10px] font-bold uppercase text-brand-green">
+                          Default
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-lg bg-brand-cream p-3 text-sm text-brand-green">
+                No saved address yet. Add one from My Account or enter delivery details below.
+              </div>
+            )}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Full name">
               <Input value={form.fullName} onChange={(event) => updateField("fullName", event.target.value)} required />
@@ -200,7 +319,7 @@ export function CheckoutClient() {
             <Field label="Phone number">
               <Input value={form.phone} onChange={(event) => updateField("phone", event.target.value)} required />
             </Field>
-            <Field label="City">
+            <Field label="District">
               <Input value={form.city} onChange={(event) => updateField("city", event.target.value)} required />
             </Field>
             <Field label="State">
@@ -209,20 +328,6 @@ export function CheckoutClient() {
             <Field label="Pincode">
               <Input inputMode="numeric" value={form.pincode} onChange={(event) => updateField("pincode", event.target.value)} required />
             </Field>
-          </div>
-          <Field label="Full address">
-            <Textarea value={form.address} onChange={(event) => updateField("address", event.target.value)} required />
-          </Field>
-          <div className="rounded-lg border border-stone-200 p-4 dark:border-neutral-800">
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <WalletCards className="size-4" />
-              Payment method
-            </p>
-            <label className="mt-3 flex items-center gap-2 text-sm">
-              <input checked readOnly type="radio" />
-              Cash on Delivery
-            </label>
-            <p className="mt-2 text-xs text-stone-500">Razorpay code structure is reserved for future activation, but not enabled.</p>
           </div>
           {error ? <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">{error}</p> : null}
           <Button disabled={placing || !cart.length} size="lg" type="submit">

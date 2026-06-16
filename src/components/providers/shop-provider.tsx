@@ -107,6 +107,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        const localAddresses = window.localStorage.getItem(userStorageKey(ADDRESSES_KEY, user.id));
+        const parsedLocalAddresses = localAddresses ? (JSON.parse(localAddresses) as SavedAddress[]) : [];
+        setSavedAddresses(parsedLocalAddresses);
+
         const response = await fetch("/api/account/addresses", { cache: "no-store" });
 
         if (!active) {
@@ -114,13 +118,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         }
 
         if (!response.ok) {
-          const localAddresses = window.localStorage.getItem(userStorageKey(ADDRESSES_KEY, user.id));
-          setSavedAddresses(localAddresses ? (JSON.parse(localAddresses) as SavedAddress[]) : []);
           return;
         }
 
         const data = (await response.json()) as { addresses: SavedAddress[] };
-        setSavedAddresses(data.addresses || []);
+        setSavedAddresses(data.addresses?.length ? data.addresses : parsedLocalAddresses);
       } catch {
         if (active) {
           const localAddresses = window.localStorage.getItem(userStorageKey(ADDRESSES_KEY, user.id));
@@ -410,7 +412,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       orders: isAuthenticated ? orders : [],
       cartCount: isAuthenticated ? cart.reduce((sum, item) => sum + item.quantity, 0) : 0,
       wishlistCount: isAuthenticated ? wishlist.length : 0,
-      subtotal: isAuthenticated ? cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0) : 0,
+      subtotal: isAuthenticated
+        ? cart.reduce((sum, item) => sum + (item.product.salePrice || item.product.price) * item.quantity, 0)
+        : 0,
       addOrder,
       addToCart,
       removeFromCart,

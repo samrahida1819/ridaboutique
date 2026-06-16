@@ -363,7 +363,7 @@ export function ShopExplorer({
   }
 
   return (
-    <div className="pb-20 lg:pb-0">
+    <div className="pb-40 lg:pb-0">
       <Drawer
         className="max-w-[23rem]"
         onClose={() => setFilterDrawerOpen(false)}
@@ -553,7 +553,7 @@ export function ShopExplorer({
         </section>
       </div>
 
-      <div className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-2 gap-2 rounded-full border border-brand-green/10 bg-white/95 p-2 shadow-luxury backdrop-blur lg:hidden">
+      <div className="fixed inset-x-3 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-2 gap-2 rounded-full border border-brand-green/10 bg-white/95 p-2 shadow-luxury backdrop-blur lg:hidden">
         <Button className="h-11" onClick={() => openMobileFilters()} variant="primary">
           <SlidersHorizontal className="size-4" />
           Filter

@@ -64,11 +64,11 @@ export function ProductDetailClient({ slug }: { slug: string }) {
               Designed with care, finished with restraint.
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-charcoal/62">
-              A concise product dossier for confident checkout.
+              A concise product dossier for confident buying.
             </p>
           </div>
           <div className="grid gap-4">
-            {(product.details.length ? product.details : ["Premium boutique finish", "Email login checkout", "Cash on Delivery available"]).map((detail) => (
+            {(product.details.length ? product.details : ["Premium boutique finish", "Email login required", "Simple order flow"]).map((detail) => (
               <div className="rounded-2xl border border-brand-green/10 bg-brand-ivory p-5" key={detail}>
                 <p className="text-sm text-brand-charcoal/72">{detail}</p>
               </div>

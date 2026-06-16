@@ -395,7 +395,7 @@ on conflict (id) do update set
 insert into public.website_content (key, title, body)
 values
   ('about', 'About Us', 'Rida Boutique is a premium boutique for elegant womenswear, hijabs, accessories, and thoughtful custom gifting with clear checkout and custom-order approval.'),
-  ('faq', 'FAQ', 'How do I place an order?\nAdd items to cart, choose Cash on Delivery, and place your order.\n\nCan I request custom products?\nYes. Contact us with your reference, budget, and date.'),
+  ('faq', 'FAQ', 'How do I place an order?\nAdd items to cart, open Buy now, and place your order.\n\nCan I request custom products?\nYes. Contact us with your reference, budget, and date.'),
   ('privacy', 'Privacy Policy', 'We collect only the information needed to create accounts, process orders, deliver products, and support customers.'),
   ('terms', 'Terms & Conditions', 'By using Rida Boutique, you agree to provide accurate account and delivery information and follow store policies.'),
   ('shipping', 'Shipping Policy', 'Orders are prepared after confirmation. Delivery charges are shown at checkout.'),
@@ -411,7 +411,6 @@ values
   ('store_name', '"Rida Boutique"'::jsonb),
   ('logo_url', '""'::jsonb),
   ('delivery_charges', '120'::jsonb),
-  ('cod_enabled', 'true'::jsonb),
   ('default_theme', '"light"'::jsonb),
   ('instagram_link', '"https://instagram.com"'::jsonb),
   ('facebook_link', '"https://facebook.com"'::jsonb),

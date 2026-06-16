@@ -297,7 +297,6 @@ export const fallbackSettings: StoreSettings = {
   storeName: "Rida Boutique",
   logoUrl: "",
   deliveryCharges: 120,
-  codEnabled: true,
   defaultTheme: "light",
   instagramLink: fallbackContactDetails.instagramLink,
   facebookLink: fallbackContactDetails.facebookLink,
@@ -308,7 +307,7 @@ export const fallbackWebsiteContent: WebsiteContent = {
   about:
     "Rida Boutique is a premium boutique for elegant womenswear, hijabs, accessories, and thoughtful custom gifting with clear checkout and custom-order approval.",
   faq:
-    "How do I place an order?\nAdd items to cart, choose Cash on Delivery, and place your order.\n\nCan I request custom products?\nYes. Contact us with your reference, budget, and date.\n\nHow long does delivery take?\nReady products usually ship within 2-4 business days.",
+    "How do I place an order?\nAdd items to cart, open Buy now, and place your order.\n\nCan I request custom products?\nYes. Contact us with your reference, budget, and date.\n\nHow long does delivery take?\nReady products usually ship within 2-4 business days.",
   privacy:
     "We collect only the information needed to create accounts, process orders, deliver products, and support customers. We do not sell customer data.",
   terms:

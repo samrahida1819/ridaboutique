@@ -182,7 +182,6 @@ export type StoreSettings = {
   storeName: string;
   logoUrl: string;
   deliveryCharges: number;
-  codEnabled: boolean;
   defaultTheme: "light" | "dark";
   instagramLink: string;
   facebookLink: string;

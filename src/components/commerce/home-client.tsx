@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   CircleDollarSign,
-  CreditCard,
   Frame,
   Gem,
   Gift,
@@ -36,7 +35,6 @@ const categories = [
 
 const trustItems = [
   { label: "Boutique delivery", icon: Truck },
-  { label: "Cash on Delivery", icon: CreditCard },
   { label: "Secure email login", icon: ShieldCheck },
   { label: "WhatsApp support", icon: MessageCircle }
 ];
@@ -44,7 +42,7 @@ const trustItems = [
 const customSteps = [
   ["Send references", "Share image, budget, product type and date."],
   ["Admin prices it", "We review details and confirm availability."],
-  ["Checkout", "Approved products can be ordered through the store."]
+  ["Buy now", "Approved products can be ordered through the store."]
 ];
 
 function uniqueProducts(productList: Product[]) {
@@ -117,7 +115,7 @@ export function HomeClient() {
               Shop luxury fashion, gifts and custom pieces.
             </h1>
             <p className="mt-4 max-w-[21rem] text-sm leading-6 text-brand-ivory/75 sm:max-w-2xl sm:text-base sm:leading-7">
-              Direct checkout for women&apos;s fashion, hijabs, earrings, frames, cash bouquets,
+              Direct ordering for women&apos;s fashion, hijabs, earrings, frames, cash bouquets,
               accessories and made-to-order gifts.
             </p>
             <div className="mt-6 grid gap-3 sm:flex">
@@ -167,7 +165,7 @@ export function HomeClient() {
       </section>
 
       <section className="border-b border-brand-green/10 bg-white py-2.5 sm:py-3">
-        <div className="luxury-container no-scrollbar flex gap-2 overflow-x-auto sm:grid sm:grid-cols-4">
+        <div className="luxury-container no-scrollbar flex gap-2 overflow-x-auto sm:grid sm:grid-cols-3">
           {trustItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -237,7 +235,7 @@ export function HomeClient() {
                   Custom workflow
                 </p>
                 <h2 className="mt-3 font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
-                  Send reference. Get price. Checkout cleanly.
+                  Send reference. Get price. Buy now.
                 </h2>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
@@ -261,7 +259,7 @@ export function HomeClient() {
       <section className="bg-white py-6 md:py-12">
         <div className="luxury-container">
           <SectionHeading
-            description="Short, real purchase confidence before checkout."
+            description="Short, real purchase confidence before buying."
             eyebrow="Customer Notes"
             title="Loved for service."
           />

@@ -24,7 +24,7 @@ const image = (id: string) =>
 const promises = [
   {
     title: "Clear pricing",
-    text: "Products show direct prices, and custom requests are confirmed before you checkout.",
+    text: "Products show direct prices, and custom requests are confirmed before you buy.",
     icon: CheckCircle2
   },
   {
@@ -51,7 +51,7 @@ const lanes = [
 const customSteps = [
   ["Share your brief", "Send reference images, occasion date, budget, and required personal details."],
   ["Approve the plan", "We confirm product options, price, delivery timing, and any design limits."],
-  ["Checkout safely", "Once approved, you can place the order through the website with COD support."]
+  ["Buy safely", "Once approved, you can place the order through the website."]
 ];
 
 export default function AboutPage() {
@@ -134,7 +134,7 @@ export default function AboutPage() {
       <section className="bg-white py-10 md:py-14">
         <div className="luxury-container">
           <SectionHeading
-            description="Good ecommerce is not only about products. It is about confidence before and after checkout."
+            description="Good ecommerce is not only about products. It is about confidence before and after buying."
             eyebrow="Customer promise"
             title="What customers should feel every time."
           />
@@ -201,7 +201,7 @@ export default function AboutPage() {
       <section className="bg-white py-10 md:py-14">
         <div className="luxury-container grid gap-4 md:grid-cols-3">
           {[
-            [ShieldCheck, "Secure accounts", "Email login keeps wishlist, checkout, and order history connected."],
+            [ShieldCheck, "Secure accounts", "Email login keeps wishlist, buy now, and order history connected."],
             [Gift, "Gift-ready details", "Packaging, notes, and presentation are treated as part of the product."],
             [HeartHandshake, "After-order support", "Orders, questions, and delivery concerns stay easy to follow."]
           ].map(([Icon, title, text]) => {

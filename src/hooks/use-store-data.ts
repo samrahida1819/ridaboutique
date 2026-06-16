@@ -290,7 +290,6 @@ export function useStoreSettings() {
         if (item.key === "store_name" && typeof value === "string") next.storeName = value;
         if (item.key === "logo_url" && typeof value === "string") next.logoUrl = value;
         if (item.key === "delivery_charges" && typeof value === "number") next.deliveryCharges = value;
-        if (item.key === "cod_enabled" && typeof value === "boolean") next.codEnabled = value;
         if (item.key === "default_theme" && (value === "light" || value === "dark")) next.defaultTheme = value;
         if (item.key === "instagram_link" && typeof value === "string") next.instagramLink = value;
         if (item.key === "facebook_link" && typeof value === "string") next.facebookLink = value;

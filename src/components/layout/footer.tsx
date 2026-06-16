@@ -126,7 +126,7 @@ export function Footer() {
 
         <div className="mt-7 flex flex-col gap-2 border-t border-brand-gold/15 pt-5 text-xs leading-6 text-brand-ivory/52 md:flex-row md:items-center md:justify-between">
           <p>&copy; 2026 Rida Boutique. All rights reserved.</p>
-          <p>Secure login, COD checkout, and made-to-order gifting.</p>
+          <p>Secure login, simple orders, and made-to-order gifting.</p>
         </div>
       </div>
     </footer>

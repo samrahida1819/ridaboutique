@@ -20,7 +20,7 @@ export function ProductListing() {
             Shop the boutique.
           </h1>
           <p className="mt-3 max-w-[21rem] text-sm leading-7 text-brand-ivory/72 sm:max-w-2xl">
-            Premium pieces, custom gifts, and Cash on Delivery checkout in one clean catalog.
+            Premium pieces, custom gifts, and simple ordering in one clean catalog.
           </p>
         </div>
         {error ? (

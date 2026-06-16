@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Heart, ShoppingBag, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import { ProductThumb } from "@/components/commerce/product-thumb";
 import { Button } from "@/components/ui/button";
 import { useShop } from "@/components/providers/shop-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -31,23 +31,17 @@ export function ProductCard({ product }: { product: Product }) {
       whileHover={{ y: -4 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-brand-cream sm:rounded-xl">
+      <div className="relative">
         <Link aria-label={`View ${product.name}`} href={`/products/${product.slug}`}>
-          <Image
+          <ProductThumb
             alt={product.name}
-            className="object-cover transition duration-700 group-hover:scale-105 group-hover:opacity-0"
-            fill
+            className="aspect-square rounded-lg sm:rounded-xl"
+            fallbackLabel={product.name}
+            hoverImageClassName="object-cover opacity-0 transition duration-700 group-hover:scale-105 group-hover:opacity-100"
+            hoverSrc={product.hoverImage}
+            imageClassName="object-cover transition duration-700 group-hover:scale-105 group-hover:opacity-0"
             sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 50vw"
             src={product.image}
-            unoptimized
-          />
-          <Image
-            alt={`${product.name} alternate view`}
-            className="object-cover opacity-0 transition duration-700 group-hover:scale-105 group-hover:opacity-100"
-            fill
-            sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 50vw"
-            src={product.hoverImage}
-            unoptimized
           />
         </Link>
         <span className="absolute left-2 top-2 rounded-full bg-brand-gold px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-brand-green shadow-gold-soft sm:left-3 sm:top-3 sm:px-3 sm:text-[11px]">

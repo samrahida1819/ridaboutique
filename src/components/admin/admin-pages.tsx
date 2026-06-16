@@ -675,7 +675,6 @@ export function AdminSettingsPage() {
       { key: "store_name", value: form.storeName },
       { key: "logo_url", value: form.logoUrl },
       { key: "delivery_charges", value: Number(form.deliveryCharges || 0) },
-      { key: "cod_enabled", value: form.codEnabled },
       { key: "default_theme", value: form.defaultTheme },
       { key: "instagram_link", value: form.instagramLink },
       { key: "facebook_link", value: form.facebookLink },
@@ -687,7 +686,7 @@ export function AdminSettingsPage() {
 
   return (
     <>
-      <PageHeader description="Store name, logo, delivery, COD, default theme, and social links." title="Settings" />
+      <PageHeader description="Store name, logo, delivery, default theme, and social links." title="Settings" />
       {message ? <AdminNotice message={message} /> : null}
       <form className="grid gap-4 rounded-lg border border-stone-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900 md:grid-cols-2" onSubmit={save}>
         <Field label="Store name"><Input value={form.storeName} onChange={(event) => update("storeName", event.target.value)} /></Field>
@@ -702,10 +701,6 @@ export function AdminSettingsPage() {
         <Field label="Instagram link"><Input value={form.instagramLink} onChange={(event) => update("instagramLink", event.target.value)} /></Field>
         <Field label="Facebook link"><Input value={form.facebookLink} onChange={(event) => update("facebookLink", event.target.value)} /></Field>
         <Field label="YouTube link"><Input value={form.youtubeLink} onChange={(event) => update("youtubeLink", event.target.value)} /></Field>
-        <label className="flex items-center gap-2 text-sm md:col-span-2">
-          <input checked={form.codEnabled} onChange={(event) => update("codEnabled", event.target.checked)} type="checkbox" />
-          Cash on Delivery enabled
-        </label>
         <Button className="w-fit md:col-span-2" type="submit"><Save className="size-4" />Save settings</Button>
       </form>
     </>
