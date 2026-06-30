@@ -7,12 +7,12 @@ Premium boutique ecommerce website built with Next.js App Router, Tailwind CSS, 
 - Next.js App Router
 - React 19
 - Tailwind CSS
-- Supabase Auth email/password
+- Supabase Auth (separate customer + admin login)
 - Supabase Postgres with Row Level Security
-- Supabase Storage for product images
-- Online payment checkout via Razorpay (UPI, cards, netbanking, wallets)
+- Supabase Storage for product + custom order images
+- Online payment checkout via Razorpay
 
-## Setup
+## Local setup
 
 1. Install dependencies:
 
@@ -20,33 +20,31 @@ Premium boutique ecommerce website built with Next.js App Router, Tailwind CSS, 
 npm install
 ```
 
-2. Environment variables:
+2. Copy environment variables:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://zupkwctshyqurixsajmr.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_6_ktwkmKD_TYT7IP2OPT4Q_URgp4-5u
+cp .env.example .env.local
 ```
 
-3. Apply the database schema in Supabase SQL Editor:
+Fill in your Supabase and Razorpay keys in `.env.local`. This file is **not** pushed to GitHub.
 
-```bash
-supabase/schema.sql
-```
+3. Apply the database schema in **Supabase → SQL Editor**:
 
-4. Create/update the default admin in Supabase SQL Editor:
+Run the full file: `supabase/schema.sql`
 
-```sql
-supabase/admin_setup.sql
-```
+4. Create the default admin user in **Supabase → SQL Editor**:
 
-Default admin login after running the script:
+Run the full file: `supabase/admin_setup.sql`
+
+Default admin login:
 
 ```text
-Email: admin@ridaboutique.in
+URL:      /dashboard/login
+Email:    admin@ridaboutique.in
 Password: RidaAdmin@2026
 ```
 
-Change this password in Supabase Authentication before going live.
+Change this password before going live.
 
 5. Run locally:
 
@@ -54,80 +52,54 @@ Change this password in Supabase Authentication before going live.
 npm run dev
 ```
 
+Open `http://localhost:3000`
+
 ## Routes
 
-Customer pages:
+**Customer (storefront):**
 
-- `/`
-- `/products`
-- `/products/[slug]`
-- `/cart`
-- `/checkout`
-- `/login`
-- `/signup`
-- `/reset-password`
-- `/account`
-- `/orders`
-- `/wishlist`
-- `/about`
-- `/custom-orders`
-- `/contact`
-- `/faq`
-- `/privacy-policy`
-- `/terms-conditions`
-- `/shipping-policy`
-- `/return-policy`
+- `/` — Home
+- `/products`, `/products/[slug]`
+- `/cart`, `/checkout`
+- `/login`, `/signup`, `/reset-password`
+- `/account`, `/orders`, `/wishlist`
+- `/custom-orders` (login required)
+- `/about`, `/contact`, `/faq`
+- Policy pages
 
-Admin pages:
+**Admin (dashboard):**
 
-- `/admin`
-- `/admin/products`
-- `/admin/products/new`
-- `/admin/products/[id]`
-- `/admin/orders`
-- `/admin/customers`
-- `/admin/categories`
-- `/admin/banners`
-- `/admin/content`
-- `/admin/contact-details`
-- `/admin/settings`
+- `/dashboard/login` — Admin login only
+- `/dashboard` — Dashboard home
+- `/dashboard/products`, `/dashboard/products/new`, `/dashboard/products/[id]`
+- `/dashboard/orders`, `/dashboard/custom-orders`, `/dashboard/reviews`
+- `/dashboard/customers`, `/dashboard/categories`, `/dashboard/banners`
+- `/dashboard/content`, `/dashboard/contact-details`, `/dashboard/settings`
 
-## Supabase
+Legacy `/admin/*` URLs redirect to `/dashboard/*`.
 
-The schema creates:
+Customer accounts cannot use `/dashboard/login`. Admin accounts cannot use `/login`.
 
-- `profiles`
-- `products`
-- `categories`
-- `orders`
-- `order_items`
-- `wishlist`
-- `banners`
-- `website_content`
-- `contact_details`
-- `settings`
+## Supabase tables
 
-RLS policies allow public reads for active storefront data, customer-only access to personal orders/wishlist, and admin-only management for catalog, orders, customers, content, banners, contact details, and settings.
+- `profiles`, `products`, `categories`, `orders`, `order_items`
+- `wishlist`, `banners`, `website_content`, `contact_details`, `settings`
+- `custom_orders`, `addresses`, `reviews`
 
-Product images use the public `product-images` Supabase Storage bucket. Admin image upload is controlled by the admin RLS policy.
+Product and custom-order reference images use the public `product-images` Storage bucket.
 
-Homepage marketing banner:
+Homepage banners: managed from `/dashboard/banners`. Multiple active banners rotate in a carousel on the home page.
 
-- Appears below the trust strip and above categories.
-- Managed from `/admin/banners`.
-- Fresh installs get one seeded custom-order banner from `supabase/schema.sql`.
+## Vercel deployment checklist
 
-## Vercel Deployment
+Git push alone is **not** enough for the live site. After importing from GitHub:
 
-1. Push the repository to GitHub.
-2. Import the project in Vercel.
-3. Add the same environment variables in Vercel Project Settings.
-4. Deploy. Vercel will auto-detect Next.js.
+1. **Environment variables** — add all keys from `.env.example` in Vercel → Project Settings → Environment Variables (same values as your `.env.local`).
 
-Build command:
+2. **Supabase SQL** — run `supabase/schema.sql` and `supabase/admin_setup.sql` in your Supabase project (once per database).
 
-```bash
-npm run build
-```
+3. **Redeploy** — trigger a new deploy after env vars are saved.
 
-Output is handled by Vercel automatically.
+4. **Admin login** — use `/dashboard/login` on your live domain, not `/login`.
+
+Build command: `npm run build`
