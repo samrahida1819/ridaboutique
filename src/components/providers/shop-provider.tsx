@@ -10,7 +10,40 @@ import {
   type ReactNode
 } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { CartItem, Order, Product, SavedAddress } from "@/types/commerce";
+
+function mapAddressRow(row: Record<string, unknown>): SavedAddress {
+  return {
+    id: String(row.id),
+    label: String(row.label || "Address"),
+    fullName: String(row.full_name || ""),
+    phone: String(row.phone || ""),
+    address: String(row.address || ""),
+    district: String(row.district || ""),
+    pincode: String(row.pincode || ""),
+    landmark: row.landmark ? String(row.landmark) : undefined,
+    isDefault: row.is_default === true
+  };
+}
+
+function addressToRow(address: Omit<SavedAddress, "id">, userId: string) {
+  return {
+    user_id: userId,
+    label: address.label,
+    full_name: address.fullName,
+    phone: address.phone,
+    address: address.address || "",
+    district: address.district,
+    pincode: address.pincode,
+    landmark: address.landmark || null,
+    is_default: address.isDefault
+  };
+}
+
+function shouldUseSupabaseAddresses(userId?: string) {
+  return Boolean(hasSupabaseConfig() && userId && !userId.startsWith("testing-"));
+}
 
 type ShopContextValue = {
   cart: CartItem[];
@@ -106,27 +139,34 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      try {
-        const localAddresses = window.localStorage.getItem(userStorageKey(ADDRESSES_KEY, user.id));
-        const parsedLocalAddresses = localAddresses ? (JSON.parse(localAddresses) as SavedAddress[]) : [];
-        setSavedAddresses(parsedLocalAddresses);
+      const localAddresses = window.localStorage.getItem(userStorageKey(ADDRESSES_KEY, user.id));
+      const parsedLocalAddresses = localAddresses ? (JSON.parse(localAddresses) as SavedAddress[]) : [];
 
-        const response = await fetch("/api/account/addresses", { cache: "no-store" });
+      if (!shouldUseSupabaseAddresses(user.id)) {
+        setSavedAddresses(parsedLocalAddresses);
+        return;
+      }
+
+      try {
+        const { data, error } = await getSupabaseBrowserClient()
+          .from("addresses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true });
 
         if (!active) {
           return;
         }
 
-        if (!response.ok) {
+        if (error) {
+          setSavedAddresses(parsedLocalAddresses);
           return;
         }
 
-        const data = (await response.json()) as { addresses: SavedAddress[] };
-        setSavedAddresses(data.addresses?.length ? data.addresses : parsedLocalAddresses);
+        setSavedAddresses((data || []).map(mapAddressRow));
       } catch {
         if (active) {
-          const localAddresses = window.localStorage.getItem(userStorageKey(ADDRESSES_KEY, user.id));
-          setSavedAddresses(localAddresses ? (JSON.parse(localAddresses) as SavedAddress[]) : []);
+          setSavedAddresses(parsedLocalAddresses);
         }
       }
     }
@@ -244,110 +284,101 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       isDefault: shouldBeDefault
     };
 
-    try {
-      const response = await fetch("/api/account/addresses", {
-        body: JSON.stringify({ ...address, isDefault: shouldBeDefault }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST"
-      });
+    function applyLocal(next: SavedAddress) {
+      setSavedAddresses((current) => [
+        ...current.map((item) => ({ ...item, isDefault: shouldBeDefault ? false : item.isDefault })),
+        next
+      ]);
+    }
 
-      if (!response.ok) {
-        setSavedAddresses((current) => [
-          ...current.map((item) => ({ ...item, isDefault: shouldBeDefault ? false : item.isDefault })),
-          localAddress
-        ]);
+    if (user && shouldUseSupabaseAddresses(user.id)) {
+      try {
+        const supabase = getSupabaseBrowserClient();
+
+        if (shouldBeDefault) {
+          await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
+        }
+
+        const { data, error } = await supabase
+          .from("addresses")
+          .insert(addressToRow({ ...address, isDefault: shouldBeDefault }, user.id))
+          .select("*")
+          .single();
+
+        if (error || !data) {
+          throw error || new Error("Address insert failed.");
+        }
+
+        const nextAddress = mapAddressRow(data);
+        applyLocal(nextAddress);
+        return nextAddress;
+      } catch {
+        applyLocal(localAddress);
         return localAddress;
       }
-
-      const data = (await response.json()) as { address: SavedAddress };
-      const nextAddress = data.address;
-      setSavedAddresses((current) => [
-        ...current.map((item) => ({ ...item, isDefault: shouldBeDefault ? false : item.isDefault })),
-        nextAddress
-      ]);
-
-      return nextAddress;
-    } catch {
-      setSavedAddresses((current) => [
-        ...current.map((item) => ({ ...item, isDefault: shouldBeDefault ? false : item.isDefault })),
-        localAddress
-      ]);
-      return localAddress;
     }
-  }, [requestLogin, savedAddresses.length]);
+
+    applyLocal(localAddress);
+    return localAddress;
+  }, [requestLogin, savedAddresses.length, user]);
 
   const updateSavedAddress = useCallback(async (addressId: string, address: Omit<SavedAddress, "id">) => {
     if (!requestLogin("Sign in with email to edit saved addresses.")) {
       return null;
     }
 
-    try {
-      const response = await fetch(`/api/account/addresses/${addressId}`, {
-        body: JSON.stringify(address),
-        headers: { "Content-Type": "application/json" },
-        method: "PATCH"
-      });
+    function applyLocal(next: SavedAddress) {
+      setSavedAddresses((current) =>
+        current.map((item) =>
+          item.id === addressId
+            ? next
+            : { ...item, isDefault: next.isDefault ? false : item.isDefault }
+        )
+      );
+    }
 
-      if (!response.ok) {
-        const localAddress: SavedAddress = { ...address, id: addressId };
-        setSavedAddresses((current) =>
-          current.map((item) =>
-            item.id === addressId
-              ? localAddress
-              : { ...item, isDefault: localAddress.isDefault ? false : item.isDefault }
-          )
-        );
+    const localAddress: SavedAddress = { ...address, id: addressId };
+
+    if (user && shouldUseSupabaseAddresses(user.id)) {
+      try {
+        const supabase = getSupabaseBrowserClient();
+
+        if (address.isDefault) {
+          await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
+        }
+
+        const row = addressToRow(address, user.id);
+        const { data, error } = await supabase
+          .from("addresses")
+          .update(row)
+          .eq("id", addressId)
+          .eq("user_id", user.id)
+          .select("*")
+          .single();
+
+        if (error || !data) {
+          throw error || new Error("Address update failed.");
+        }
+
+        const nextAddress = mapAddressRow(data);
+        applyLocal(nextAddress);
+        return nextAddress;
+      } catch {
+        applyLocal(localAddress);
         return localAddress;
       }
-
-      const data = (await response.json()) as { address: SavedAddress };
-      const nextAddress = data.address;
-
-      setSavedAddresses((current) =>
-        current.map((item) =>
-          item.id === addressId
-            ? nextAddress
-            : { ...item, isDefault: nextAddress.isDefault ? false : item.isDefault }
-        )
-      );
-
-      return nextAddress;
-    } catch {
-      const localAddress: SavedAddress = { ...address, id: addressId };
-      setSavedAddresses((current) =>
-        current.map((item) =>
-          item.id === addressId
-            ? localAddress
-            : { ...item, isDefault: localAddress.isDefault ? false : item.isDefault }
-        )
-      );
-      return localAddress;
     }
-  }, [requestLogin]);
+
+    applyLocal(localAddress);
+    return localAddress;
+  }, [requestLogin, user]);
 
   const removeSavedAddress = useCallback(async (addressId: string) => {
     if (!requestLogin("Sign in with email to manage saved addresses.")) {
       return false;
     }
 
-    try {
-      const response = await fetch(`/api/account/addresses/${addressId}`, {
-        method: "DELETE"
-      });
-
-      if (!response.ok) {
-        setSavedAddresses((current) => {
-          const remaining = current.filter((address) => address.id !== addressId);
-
-          if (!remaining.length || remaining.some((address) => address.isDefault)) {
-            return remaining;
-          }
-
-          return remaining.map((address, index) => ({ ...address, isDefault: index === 0 }));
-        });
-        return true;
-      }
-
+    function applyLocal() {
       setSavedAddresses((current) => {
         const remaining = current.filter((address) => address.id !== addressId);
 
@@ -357,52 +388,46 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
         return remaining.map((address, index) => ({ ...address, isDefault: index === 0 }));
       });
-
-      return true;
-    } catch {
-      setSavedAddresses((current) => {
-        const remaining = current.filter((address) => address.id !== addressId);
-
-        if (!remaining.length || remaining.some((address) => address.isDefault)) {
-          return remaining;
-        }
-
-        return remaining.map((address, index) => ({ ...address, isDefault: index === 0 }));
-      });
-      return true;
     }
-  }, [requestLogin]);
+
+    if (user && shouldUseSupabaseAddresses(user.id)) {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        await supabase.from("addresses").delete().eq("id", addressId).eq("user_id", user.id);
+
+        const remaining = savedAddresses.filter((address) => address.id !== addressId);
+        if (remaining.length && !remaining.some((address) => address.isDefault)) {
+          await supabase.from("addresses").update({ is_default: true }).eq("id", remaining[0].id).eq("user_id", user.id);
+        }
+      } catch {
+        // fall through to local update
+      }
+    }
+
+    applyLocal();
+    return true;
+  }, [requestLogin, savedAddresses, user]);
 
   const setDefaultAddress = useCallback(async (addressId: string) => {
     if (!requestLogin("Sign in with email to manage saved addresses.")) {
       return false;
     }
 
-    try {
-      const response = await fetch(`/api/account/addresses/${addressId}`, {
-        body: JSON.stringify({ isDefault: true }),
-        headers: { "Content-Type": "application/json" },
-        method: "PATCH"
-      });
-
-      if (!response.ok) {
-        setSavedAddresses((current) =>
-          current.map((address) => ({ ...address, isDefault: address.id === addressId }))
-        );
-        return true;
+    if (user && shouldUseSupabaseAddresses(user.id)) {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
+        await supabase.from("addresses").update({ is_default: true }).eq("id", addressId).eq("user_id", user.id);
+      } catch {
+        // fall through to local update
       }
-
-      setSavedAddresses((current) =>
-        current.map((address) => ({ ...address, isDefault: address.id === addressId }))
-      );
-      return true;
-    } catch {
-      setSavedAddresses((current) =>
-        current.map((address) => ({ ...address, isDefault: address.id === addressId }))
-      );
-      return true;
     }
-  }, [requestLogin]);
+
+    setSavedAddresses((current) =>
+      current.map((address) => ({ ...address, isDefault: address.id === addressId }))
+    );
+    return true;
+  }, [requestLogin, user]);
 
   const value = useMemo(
     () => ({

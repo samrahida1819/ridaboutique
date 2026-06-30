@@ -10,8 +10,7 @@ Premium boutique ecommerce website built with Next.js App Router, Tailwind CSS, 
 - Supabase Auth email/password
 - Supabase Postgres with Row Level Security
 - Supabase Storage for product images
-- Cash on Delivery checkout
-- Razorpay-ready structure, intentionally inactive for now
+- Online payment checkout via Razorpay (UPI, cards, netbanking, wallets)
 
 ## Setup
 
@@ -34,16 +33,20 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_6_ktwkmKD_TYT7IP2OPT4Q_URgp4
 supabase/schema.sql
 ```
 
-4. Create an admin:
-
-- Sign up from `/signup`
-- In Supabase SQL Editor, promote that user:
+4. Create/update the default admin in Supabase SQL Editor:
 
 ```sql
-update public.profiles
-set role = 'admin'
-where email = 'admin@example.com';
+supabase/admin_setup.sql
 ```
+
+Default admin login after running the script:
+
+```text
+Email: admin@ridaboutique.in
+Password: RidaAdmin@2026
+```
+
+Change this password in Supabase Authentication before going live.
 
 5. Run locally:
 

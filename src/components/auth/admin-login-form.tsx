@@ -8,11 +8,19 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/providers/theme-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+
+type AdminLoginResponse = {
+  session: {
+    accessToken: string;
+    refreshToken: string;
+  };
+};
 
 export function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { authReady, refreshProfile, signIn, signOut, testingLogin, user } = useAuth();
+  const { authReady, refreshProfile, signOut, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -43,23 +51,34 @@ export function AdminLoginForm() {
     setMessage("");
     setSubmitting(true);
 
-    const result = await signIn(email, password);
-    await refreshProfile();
-    setSubmitting(false);
+    try {
+      const response = await fetch("/api/admin/login", {
+        body: JSON.stringify({ email, password }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => ({}))) as Partial<AdminLoginResponse> & {
+        error?: string;
+      };
 
-    if (result.error) {
-      setError(result.error);
-      return;
+      if (!response.ok || !payload.session) {
+        setError(payload.error || "Admin login failed.");
+        setSubmitting(false);
+        return;
+      }
+
+      await getSupabaseBrowserClient().auth.setSession({
+        access_token: payload.session.accessToken,
+        refresh_token: payload.session.refreshToken
+      });
+      await refreshProfile();
+      setMessage("Login successful. Opening dashboard...");
+      router.replace(nextPath);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Admin login failed.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setMessage("Login successful. Checking admin access...");
-  }
-
-  async function continueWithTestingAdmin() {
-    setError("");
-    setMessage("");
-    await testingLogin("admin");
-    router.replace(nextPath);
   }
 
   return (
@@ -96,9 +115,6 @@ export function AdminLoginForm() {
               </p>
               <Button className="mt-4" onClick={() => void signOut()} variant="outline">
                 Logout
-              </Button>
-              <Button className="mt-3 w-full" onClick={() => void continueWithTestingAdmin()}>
-                Continue with testing admin
               </Button>
             </div>
           ) : (
@@ -137,18 +153,6 @@ export function AdminLoginForm() {
               </Button>
             </form>
           )}
-
-          {!(user && user.role !== "admin") ? (
-            <div className="mt-4 rounded-md border border-stone-200 bg-stone-100 p-4 dark:border-neutral-800 dark:bg-neutral-950">
-              <p className="text-sm font-semibold">Testing login</p>
-              <p className="mt-1 text-xs leading-5 text-stone-600 dark:text-stone-300">
-                Opens a local admin session for dashboard testing.
-              </p>
-              <Button className="mt-3 w-full" onClick={() => void continueWithTestingAdmin()} variant="secondary">
-                Continue with testing admin
-              </Button>
-            </div>
-          ) : null}
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
             <Link className="text-stone-600 hover:underline dark:text-stone-300" href="/login">

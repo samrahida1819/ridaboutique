@@ -1,4 +1,4 @@
-import { AdminProductsPage } from "@/components/admin/admin-pages";
+import { AdminProductsPage } from "@/components/admin/products-page";
 
 export default function AdminProductsRoute() {
   return <AdminProductsPage />;

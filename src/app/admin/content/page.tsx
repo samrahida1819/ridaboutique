@@ -1,4 +1,4 @@
-import { AdminContentPage } from "@/components/admin/admin-pages";
+import { AdminContentPage } from "@/components/admin/content-page";
 
 export default function AdminContentRoute() {
   return <AdminContentPage />;

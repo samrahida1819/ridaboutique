@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Sparkles
 } from "lucide-react";
+import { ManagedContentText } from "@/components/commerce/managed-content-text";
 import { SectionHeading } from "@/components/commerce/section-heading";
 import { ButtonLink } from "@/components/ui/button";
 
@@ -66,10 +67,11 @@ export default function AboutPage() {
             <h1 className="mt-4 max-w-4xl font-serif text-4xl leading-none sm:text-5xl md:text-7xl">
               Boutique shopping that feels personal, polished, and easy.
             </h1>
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-brand-ivory/75 sm:text-base">
-              Rida Boutique is built for customers who want elegant fashion and thoughtful custom
-              gifts without confusing chats, hidden pricing, or messy order tracking.
-            </p>
+            <ManagedContentText
+              className="mt-5 max-w-2xl whitespace-pre-line text-sm leading-7 text-brand-ivory/75 sm:text-base"
+              contentKey="about"
+              fallback="Rida Boutique is built for customers who want elegant fashion and thoughtful custom gifts without confusing chats, hidden pricing, or messy order tracking."
+            />
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/products" size="lg" variant="gold">
                 Shop the edit <ArrowRight className="size-4" />

@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   Frame,
   Gem,
@@ -15,13 +17,17 @@ import {
   Sparkles,
   Truck
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ProductCard } from "@/components/commerce/product-card";
+import { ProductThumb } from "@/components/commerce/product-thumb";
 import { SectionHeading } from "@/components/commerce/section-heading";
 import { TestimonialCard } from "@/components/commerce/testimonial-card";
 import { Reveal } from "@/components/motion/reveal";
 import { ButtonLink } from "@/components/ui/button";
+import { useToast } from "@/components/providers/toast-provider";
 import { testimonials } from "@/data/store";
 import { useBanners, useCatalog } from "@/hooks/use-store-data";
+import { formatCurrency } from "@/lib/utils";
 import type { Banner, Product } from "@/types/commerce";
 
 const categories = [
@@ -101,24 +107,25 @@ export function HomeClient() {
     usedProductIds
   );
   const customCreations = takeUniqueProducts(catalogProducts.filter(isCustomProduct), usedProductIds);
-  const marketingBanner = banners[0];
+  const activeBanners = banners.filter((banner) => banner.active !== false);
 
   return (
     <main className="bg-brand-ivory">
-      <section className="bg-brand-green pb-6 pt-24 text-brand-ivory sm:pt-28 md:pb-8 md:pt-36">
-        <div className="luxury-container grid gap-6 lg:grid-cols-[1fr_420px] lg:items-center">
+      <section className="hero-glow overflow-hidden bg-brand-green pb-8 pt-24 text-brand-ivory sm:pt-28 md:pb-14 md:pt-36">
+        <div className="luxury-container grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
           <Reveal>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-gold sm:text-xs">
+            <p className="inline-flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-brand-gold sm:text-xs">
+              <span className="h-px w-7 bg-brand-gold/60" />
               Rida Boutique
             </p>
-            <h1 className="mt-3 max-w-[22rem] font-serif text-3xl leading-[0.98] sm:max-w-3xl sm:text-5xl md:text-7xl">
-              Shop luxury fashion, gifts and custom pieces.
+            <h1 className="mt-4 max-w-[18rem] font-serif text-[2.6rem] leading-[0.96] sm:max-w-3xl sm:text-6xl md:text-7xl">
+              Luxury fashion, gifts &amp; custom pieces.
             </h1>
-            <p className="mt-4 max-w-[21rem] text-sm leading-6 text-brand-ivory/75 sm:max-w-2xl sm:text-base sm:leading-7">
+            <p className="mt-5 max-w-[22rem] text-sm leading-6 text-brand-ivory/75 sm:max-w-xl sm:text-base sm:leading-7">
               Direct ordering for women&apos;s fashion, hijabs, earrings, frames, cash bouquets,
               accessories and made-to-order gifts.
             </p>
-            <div className="mt-6 grid gap-3 sm:flex">
+            <div className="mt-7 grid gap-3 sm:flex">
               <ButtonLink className="w-full sm:w-auto" href="/products" size="lg" variant="gold">
                 Shop Now
               </ButtonLink>
@@ -131,32 +138,33 @@ export function HomeClient() {
           {heroProduct ? (
             <Reveal delay={0.08}>
               <Link
-                className="group grid grid-cols-[92px_1fr] gap-3 rounded-xl border border-brand-gold/25 bg-white/10 p-2.5 backdrop-blur transition hover:bg-white/15 sm:grid-cols-[132px_1fr] sm:gap-4 sm:p-3 lg:block lg:p-4"
+                className="group relative block overflow-hidden rounded-[1.4rem] border border-brand-gold/25 bg-white/5 shadow-luxury ring-1 ring-white/5"
                 href={`/products/${heroProduct.slug}`}
               >
-                <div className="relative aspect-square overflow-hidden rounded-lg bg-brand-cream sm:rounded-xl lg:aspect-square">
-                  <Image
-                    alt={heroProduct.name}
-                    className="object-cover transition duration-700 group-hover:scale-105"
-                    fill
-                    priority
-                    sizes="(min-width: 1024px) 420px, 160px"
-                    src={heroProduct.image}
-                  />
-                  <span className="absolute left-2 top-2 rounded-full bg-brand-gold px-2 py-1 text-[10px] font-bold uppercase text-brand-green">
-                    New
+                <ProductThumb
+                  alt={heroProduct.name}
+                  className="aspect-[5/4] w-full rounded-none sm:aspect-[16/10] lg:aspect-[4/5]"
+                  fallbackLabel={heroProduct.name}
+                  imageClassName="object-cover transition duration-[1200ms] ease-luxury group-hover:scale-105"
+                  sizes="(min-width: 1024px) 560px, 100vw"
+                  src={heroProduct.image}
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-deep/85 via-brand-deep/10 to-transparent" />
+                <span className="absolute left-4 top-4 rounded-full bg-brand-gold/95 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-green shadow-gold-soft">
+                  Featured
+                </span>
+                <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="line-clamp-2 font-serif text-2xl leading-tight text-brand-ivory sm:text-3xl">
+                      {heroProduct.name}
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-brand-champagne">
+                      {formatCurrency(heroProduct.salePrice && heroProduct.salePrice > 0 ? heroProduct.salePrice : heroProduct.price)}
+                    </p>
+                  </div>
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-ivory text-brand-green transition duration-300 group-hover:bg-brand-gold">
+                    <ArrowRight className="size-5 transition duration-300 group-hover:translate-x-0.5" />
                   </span>
-                </div>
-                <div className="flex min-w-0 flex-col justify-center lg:mt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-gold">
-                    Featured piece
-                  </p>
-                  <h2 className="mt-2 line-clamp-2 font-serif text-2xl leading-tight text-brand-ivory sm:text-3xl">
-                    {heroProduct.name}
-                  </h2>
-                  <p className="mt-2 text-sm font-semibold text-brand-champagne">
-                    Tap to view details
-                  </p>
                 </div>
               </Link>
             </Reveal>
@@ -181,7 +189,7 @@ export function HomeClient() {
         </div>
       </section>
 
-      {marketingBanner ? <MarketingBanner banner={marketingBanner} /> : null}
+      {activeBanners.length ? <MarketingBannerCarousel banners={activeBanners} /> : null}
 
       <section className="py-6 md:py-12">
         <div className="luxury-container">
@@ -285,23 +293,7 @@ export function HomeClient() {
                 New drops, custom slots and first-order offers.
               </h2>
             </div>
-            <form className="flex flex-col gap-3 sm:flex-row">
-              <label className="sr-only" htmlFor="newsletter-email">
-                Email address
-              </label>
-              <input
-                className="h-12 min-w-0 flex-1 rounded-full border border-brand-green/15 bg-brand-cream px-5 text-sm text-brand-green placeholder:text-brand-green/45 focus:border-brand-gold focus:outline-none focus:ring-4 focus:ring-brand-gold/20"
-                id="newsletter-email"
-                placeholder="Email address"
-                type="email"
-              />
-              <button
-                className="h-12 rounded-full bg-brand-green px-7 text-sm font-semibold text-brand-ivory transition hover:bg-brand-deep"
-                type="submit"
-              >
-                Join
-              </button>
-            </form>
+            <NewsletterForm />
           </div>
         </div>
       </section>
@@ -309,17 +301,188 @@ export function HomeClient() {
   );
 }
 
-function MarketingBanner({ banner }: { banner: Banner }) {
-  const href = banner.linkUrl?.trim() || "/custom-orders";
+function NewsletterForm() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [joined, setJoined] = useState(false);
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast({ kind: "info", title: "Enter a valid email", description: "We need a valid email to add you." });
+      return;
+    }
+
+    try {
+      const stored = JSON.parse(window.localStorage.getItem("rida-newsletter") || "[]") as string[];
+      const next = Array.from(new Set([email.trim().toLowerCase(), ...stored])).slice(0, 50);
+      window.localStorage.setItem("rida-newsletter", JSON.stringify(next));
+    } catch {
+      window.localStorage.setItem("rida-newsletter", JSON.stringify([email.trim().toLowerCase()]));
+    }
+
+    setEmail("");
+    setJoined(true);
+    toast({ title: "You're on the list", description: "We'll share new drops and custom slots." });
+  }
+
+  return (
+    <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>
+      <label className="sr-only" htmlFor="newsletter-email">
+        Email address
+      </label>
+      <input
+        className="h-12 min-w-0 flex-1 rounded-full border border-brand-green/15 bg-brand-cream px-5 text-sm text-brand-green placeholder:text-brand-green/45 focus:border-brand-gold focus:outline-none focus:ring-4 focus:ring-brand-gold/20"
+        id="newsletter-email"
+        onChange={(event) => setEmail(event.target.value)}
+        placeholder="Email address"
+        type="email"
+        value={email}
+      />
+      <button
+        className="h-12 shrink-0 rounded-full bg-brand-green px-7 text-sm font-semibold text-brand-ivory transition hover:bg-brand-deep"
+        type="submit"
+      >
+        {joined ? "Joined" : "Join"}
+      </button>
+    </form>
+  );
+}
+
+function MarketingBannerCarousel({ banners }: { banners: Banner[] }) {
+  const count = banners.length;
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const go = useCallback(
+    (next: number) => {
+      if (count === 0) {
+        return;
+      }
+      setIndex(((next % count) + count) % count);
+    },
+    [count]
+  );
+
+  useEffect(() => {
+    if (index > count - 1) {
+      setIndex(0);
+    }
+  }, [count, index]);
+
+  useEffect(() => {
+    if (count <= 1 || paused) {
+      return;
+    }
+
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % count);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [count, paused]);
+
+  if (count === 0) {
+    return null;
+  }
+
+  if (count === 1) {
+    return (
+      <section className="bg-brand-ivory py-4 md:py-8">
+        <div className="luxury-container">
+          <BannerCard banner={banners[0]} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-brand-ivory py-4 md:py-8">
       <div className="luxury-container">
-        <Link
-          className="group grid overflow-hidden rounded-xl border border-brand-green/10 bg-white text-brand-green shadow-luxury transition hover:-translate-y-1 hover:border-brand-gold sm:rounded-2xl md:grid-cols-[1fr_360px] lg:grid-cols-[1fr_430px]"
-          href={href}
+        <div
+          aria-roledescription="carousel"
+          className="relative"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onTouchStart={(event) => {
+            touchStartX.current = event.touches[0]?.clientX ?? null;
+          }}
+          onTouchEnd={(event) => {
+            if (touchStartX.current === null) {
+              return;
+            }
+            const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+            if (Math.abs(delta) > 40) {
+              go(delta < 0 ? index + 1 : index - 1);
+            }
+            touchStartX.current = null;
+          }}
         >
-          <div className="flex min-w-0 flex-col justify-center p-4 sm:p-7 lg:p-9">
+          <div className="overflow-hidden rounded-xl sm:rounded-2xl">
+            <div
+              className="flex transition-transform duration-700 ease-luxury motion-reduce:transition-none"
+              style={{ transform: `translateX(-${index * 100}%)` }}
+            >
+              {banners.map((banner) => (
+                <div className="w-full shrink-0" key={banner.id}>
+                  <BannerCard banner={banner} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            aria-label="Previous banner"
+            className="absolute left-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-brand-green shadow-luxury backdrop-blur transition hover:bg-white sm:left-3 sm:size-10"
+            onClick={() => go(index - 1)}
+            type="button"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+          <button
+            aria-label="Next banner"
+            className="absolute right-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-brand-green shadow-luxury backdrop-blur transition hover:bg-white sm:right-3 sm:size-10"
+            onClick={() => go(index + 1)}
+            type="button"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+
+          <div className="mt-4 flex items-center justify-center gap-2">
+            {banners.map((banner, dotIndex) => (
+              <button
+                aria-label={`Go to banner ${dotIndex + 1}`}
+                aria-current={dotIndex === index}
+                className={`h-2 rounded-full transition-all ${
+                  dotIndex === index ? "w-6 bg-brand-green" : "w-2 bg-brand-green/30 hover:bg-brand-green/50"
+                }`}
+                key={banner.id}
+                onClick={() => go(dotIndex)}
+                type="button"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BannerCard({ banner }: { banner: Banner }) {
+  const href = banner.linkUrl?.trim() || "/custom-orders";
+
+  return (
+    <Link
+      className="group grid overflow-hidden rounded-xl border border-brand-green/10 bg-white text-brand-green shadow-luxury transition hover:-translate-y-1 hover:border-brand-gold sm:rounded-2xl md:grid-cols-[1fr_360px] lg:grid-cols-[1fr_430px]"
+      href={href}
+    >
+      <div className="flex min-w-0 flex-col justify-center p-4 sm:p-7 lg:p-9">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-gold">
               Custom order spotlight
             </p>
@@ -343,6 +506,7 @@ function MarketingBanner({ banner }: { banner: Banner }) {
                 fill
                 sizes="(min-width: 1024px) 430px, (min-width: 768px) 360px, 100vw"
                 src={banner.imageUrl}
+                unoptimized
               />
             ) : (
               <div className="grid h-full place-items-center p-8 text-center">
@@ -350,9 +514,7 @@ function MarketingBanner({ banner }: { banner: Banner }) {
               </div>
             )}
           </div>
-        </Link>
-      </div>
-    </section>
+    </Link>
   );
 }
 

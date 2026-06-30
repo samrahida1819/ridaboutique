@@ -1,18 +1,25 @@
 "use client";
 
+import { useMemo } from "react";
 import { ShieldCheck } from "lucide-react";
 import { ProductCard } from "@/components/commerce/product-card";
 import { ProductGallery } from "@/components/commerce/product-gallery";
 import { ProductPurchasePanel } from "@/components/commerce/product-purchase-panel";
 import { ProductReviewsClient } from "@/components/commerce/product-reviews-client";
 import { ButtonLink } from "@/components/ui/button";
-import { getRelatedProducts } from "@/data/store";
 import { useCatalog } from "@/hooks/use-store-data";
 
 export function ProductDetailClient({ slug }: { slug: string }) {
   const { loading, products } = useCatalog(true);
   const product = products.find((item) => item.slug === slug);
-  const related = product ? getRelatedProducts(product) : [];
+  const related = useMemo(() => {
+    if (!product) {
+      return [];
+    }
+    return products
+      .filter((candidate) => candidate.id !== product.id && candidate.category === product.category)
+      .slice(0, 4);
+  }, [products, product]);
 
   if (loading) {
     return (

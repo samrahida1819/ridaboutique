@@ -18,12 +18,17 @@ export function ProductCard({ product }: { product: Product }) {
   const soldOut = product.stockStatus === "Sold out";
   const activePrice = product.salePrice && product.salePrice > 0 ? product.salePrice : product.price;
   const compareAtPrice =
-    product.originalPrice || (activePrice < product.price ? product.price : Math.ceil((activePrice * 1.14) / 100) * 100);
+    product.originalPrice && product.originalPrice > activePrice
+      ? product.originalPrice
+      : activePrice < product.price
+        ? product.price
+        : null;
   const rating = useProductRating(product);
-  const discountPercent = Math.max(
-    0,
-    Math.round(((compareAtPrice - activePrice) / compareAtPrice) * 100)
-  );
+  const hasDiscount = compareAtPrice != null && compareAtPrice > activePrice;
+  const discountPercent = hasDiscount
+    ? Math.round(((compareAtPrice - activePrice) / compareAtPrice) * 100)
+    : 0;
+  const showRating = rating.count > 0;
 
   return (
     <motion.article
@@ -44,12 +49,18 @@ export function ProductCard({ product }: { product: Product }) {
             src={product.image}
           />
         </Link>
-        <span className="absolute left-2 top-2 rounded-full bg-brand-gold px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-brand-green shadow-gold-soft sm:left-3 sm:top-3 sm:px-3 sm:text-[11px]">
-          {discountPercent}% Off
-        </span>
+        {soldOut ? (
+          <span className="absolute left-2 top-2 rounded-full bg-brand-charcoal/85 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-brand-ivory sm:left-3 sm:top-3 sm:text-[10px]">
+            Sold out
+          </span>
+        ) : hasDiscount ? (
+          <span className="absolute left-2 top-2 rounded-full bg-brand-gold px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-brand-green shadow-gold-soft sm:left-3 sm:top-3 sm:px-3 sm:text-[11px]">
+            {discountPercent}% Off
+          </span>
+        ) : null}
         <Button
           aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute right-2 top-2 size-8 bg-white/90 text-brand-green hover:bg-brand-green hover:text-brand-ivory sm:right-3 sm:top-3 sm:size-10"
+          className="absolute right-2 top-2 size-9 bg-white/90 text-brand-green shadow-sm backdrop-blur hover:bg-brand-green hover:text-brand-ivory sm:right-3 sm:top-3 sm:size-10"
           onClick={() => {
             if (toggleWishlist(product)) {
               toast({
@@ -69,16 +80,18 @@ export function ProductCard({ product }: { product: Product }) {
           <h3 className="line-clamp-2 min-h-[2.25rem] font-serif text-sm leading-tight text-brand-green transition group-hover:text-brand-gold sm:min-h-[2.9rem] sm:text-xl">
             {product.name}
           </h3>
-          <div className="mt-1.5 flex items-center gap-1 text-[11px] text-brand-charcoal/55">
-            <Star className="size-3 fill-brand-gold text-brand-gold" />
-            <span className="font-semibold text-brand-green">{rating.rating.toFixed(1)}</span>
-            <span>({rating.count})</span>
-          </div>
+          {showRating ? (
+            <div className="mt-1.5 flex items-center gap-1 text-[11px] text-brand-charcoal/55">
+              <Star className="size-3 fill-brand-gold text-brand-gold" />
+              <span className="font-semibold text-brand-green">{rating.rating.toFixed(1)}</span>
+              <span>({rating.count})</span>
+            </div>
+          ) : null}
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:mt-2">
             <p className="text-sm font-bold text-brand-charcoal sm:text-base">
               {formatCurrency(activePrice)}
             </p>
-            {compareAtPrice > activePrice ? (
+            {hasDiscount && compareAtPrice ? (
               <p className="text-[11px] text-brand-charcoal/42 line-through sm:text-xs">
                 {formatCurrency(compareAtPrice)}
               </p>

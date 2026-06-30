@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone, Youtube } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { useContactDetails } from "@/hooks/use-store-data";
+import { useContactDetails, useStoreSettings } from "@/hooks/use-store-data";
 
 const footerLinks = [
   {
@@ -27,7 +27,14 @@ const footerLinks = [
 
 export function Footer() {
   const { contactDetails } = useContactDetails();
+  const settings = useStoreSettings();
   const whatsappDigits = contactDetails.whatsappNumber.replace(/\D/g, "");
+  const storeName = settings.storeName || contactDetails.storeName;
+  const socialLinks = [
+    { href: settings.instagramLink || contactDetails.instagramLink, icon: Instagram, label: "Instagram" },
+    { href: settings.facebookLink || contactDetails.facebookLink, icon: Facebook, label: "Facebook" },
+    { href: settings.youtubeLink || contactDetails.youtubeLink, icon: Youtube, label: "YouTube" }
+  ].filter((item) => item.href);
   const contactItems = [
     {
       label: contactDetails.businessAddress,
@@ -57,7 +64,7 @@ export function Footer() {
         <div className="grid gap-9 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-gold">
-              Rida Boutique
+              {storeName}
             </p>
             <h2 className="mt-3 font-serif text-2xl leading-tight sm:text-3xl lg:text-4xl">
               Modern luxury, delivered with boutique care.
@@ -78,6 +85,26 @@ export function Footer() {
                 Request Custom Order
               </ButtonLink>
             </div>
+            {socialLinks.length ? (
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                {socialLinks.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <a
+                      aria-label={item.label}
+                      className="grid size-10 place-items-center rounded-full border border-brand-gold/30 text-brand-ivory transition hover:bg-brand-gold hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold/60"
+                      href={item.href}
+                      key={item.label}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <Icon className="size-4" />
+                    </a>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
           <div className="grid gap-0 border-y border-brand-gold/15 sm:grid-cols-2 sm:gap-8 sm:border-y-0">

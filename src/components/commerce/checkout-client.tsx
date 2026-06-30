@@ -1,17 +1,71 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, CreditCard, MessageCircle } from "lucide-react";
 import { LoginRequired, useAuth } from "@/components/providers/auth-provider";
 import { useShop } from "@/components/providers/shop-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
-import { useStoreSettings } from "@/hooks/use-store-data";
+import { useContactDetails, useStoreSettings } from "@/hooks/use-store-data";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/utils";
+import { buildWhatsappUrl } from "@/lib/whatsapp";
 import type { Order, SavedAddress } from "@/types/commerce";
 
 const DEFAULT_STATE = "Jammu and Kashmir";
+const ONLINE_PAYMENT_ENABLED = Boolean(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+
+type PaymentMethod = "razorpay";
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description?: string;
+  order_id: string;
+  prefill?: { name?: string; email?: string; contact?: string };
+  theme?: { color?: string };
+  handler: (response: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => void;
+  modal?: { ondismiss?: () => void };
+};
+
+type RazorpayInstance = {
+  open: () => void;
+  on: (event: "payment.failed", handler: (response: { error?: { description?: string } }) => void) => void;
+};
+
+type RazorpayConstructor = new (options: RazorpayOptions) => RazorpayInstance;
+
+declare global {
+  interface Window {
+    Razorpay?: RazorpayConstructor;
+  }
+}
+
+function loadRazorpayScript() {
+  return new Promise<boolean>((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 type CheckoutForm = {
   fullName: string;
@@ -60,6 +114,7 @@ export function CheckoutClient() {
   const { authReady, isAuthenticated, user } = useAuth();
   const { addOrder, cart, clearCart, savedAddresses, subtotal } = useShop();
   const settings = useStoreSettings();
+  const { contactDetails } = useContactDetails();
   const [form, setForm] = useState<CheckoutForm>({
     fullName: user?.name || "",
     email: user?.email || "",
@@ -117,6 +172,164 @@ export function CheckoutClient() {
     setForm((current) => checkoutFormFromSavedAddress(address, current.email || user?.email || ""));
   }
 
+  async function persistOrder(method: PaymentMethod, paymentStatus: string) {
+    if (!user) {
+      throw new Error("Please sign in before buying.");
+    }
+
+    const orderNumber = `RB-${Date.now().toString().slice(-7)}`;
+    const deliveryAddress = selectedAddress ? savedAddressLine(selectedAddress) : manualAddressLine(form);
+    const localOrder: Order = {
+      id: orderNumber,
+      date: new Date().toISOString(),
+      total,
+      status: "Pending",
+      customerName: form.fullName,
+      email: form.email,
+      phone: form.phone,
+      address: deliveryAddress,
+      city: form.city,
+      state: form.state,
+      pincode: form.pincode,
+      paymentMethod: method,
+      items: cart.map((item) => ({
+        productId: item.product.id,
+        name: item.product.name,
+        quantity: item.quantity,
+        price: item.product.salePrice || item.product.price
+      }))
+    };
+
+    if (hasSupabaseConfig()) {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          order_number: orderNumber,
+          full_name: form.fullName,
+          email: form.email,
+          phone: form.phone,
+          address: deliveryAddress,
+          city: form.city,
+          state: form.state,
+          pincode: form.pincode,
+          payment_method: method,
+          payment_status: paymentStatus,
+          status: "Pending",
+          subtotal,
+          delivery_charges: deliveryCharges,
+          total
+        })
+        .select("id, order_number, created_at")
+        .single();
+
+      if (orderError) {
+        throw orderError;
+      }
+
+      const orderId = data.id;
+      const { error: itemError } = await supabase.from("order_items").insert(
+        cart.map((item) => ({
+          order_id: orderId,
+          product_id: item.product.id,
+          product_name: item.product.name,
+          quantity: item.quantity,
+          unit_price: item.product.salePrice || item.product.price,
+          total: (item.product.salePrice || item.product.price) * item.quantity
+        }))
+      );
+
+      if (itemError) {
+        throw itemError;
+      }
+
+      localOrder.id = data.order_number || orderNumber;
+      localOrder.date = data.created_at || localOrder.date;
+    }
+
+    return localOrder;
+  }
+
+  function finalizeOrder(order: Order) {
+    addOrder(order);
+    clearCart();
+    setConfirmation(order);
+  }
+
+  async function payWithRazorpay() {
+    const receipt = `RB-${Date.now().toString().slice(-7)}`;
+    const response = await fetch("/api/checkout/create-order", {
+      body: JSON.stringify({ amount: total, receipt }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      orderId?: string;
+      amount?: number;
+      currency?: string;
+      keyId?: string;
+      error?: string;
+    };
+
+    if (!response.ok || !data.orderId || !data.keyId) {
+      throw new Error(data.error || "Unable to start online payment.");
+    }
+
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded || !window.Razorpay) {
+      throw new Error("Could not load the payment gateway. Check your connection.");
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const checkout = new window.Razorpay!({
+        key: data.keyId!,
+        amount: data.amount!,
+        currency: data.currency || "INR",
+        name: settings.storeName || "Rida Boutique",
+        description: "Order payment",
+        order_id: data.orderId!,
+        prefill: { name: form.fullName, email: form.email, contact: form.phone },
+        theme: { color: "#06281f" },
+        handler: (payment) => {
+          void (async () => {
+            try {
+              const verifyResponse = await fetch("/api/checkout/verify", {
+                body: JSON.stringify({
+                  orderId: payment.razorpay_order_id,
+                  paymentId: payment.razorpay_payment_id,
+                  signature: payment.razorpay_signature
+                }),
+                headers: { "Content-Type": "application/json" },
+                method: "POST"
+              });
+
+              if (!verifyResponse.ok) {
+                const verifyData = (await verifyResponse.json().catch(() => ({}))) as { error?: string };
+                throw new Error(verifyData.error || "Payment verification failed.");
+              }
+
+              const order = await persistOrder("razorpay", "paid");
+              finalizeOrder(order);
+              resolve();
+            } catch (nextError) {
+              reject(nextError instanceof Error ? nextError : new Error("Payment failed."));
+            }
+          })();
+        },
+        modal: {
+          ondismiss: () => reject(new Error("Payment cancelled."))
+        }
+      });
+
+      checkout.on("payment.failed", (response) => {
+        reject(new Error(response?.error?.description || "Payment failed. Please try again."));
+      });
+
+      checkout.open();
+    });
+  }
+
   async function placeOrder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -137,81 +350,15 @@ export function CheckoutClient() {
       return;
     }
 
+    if (!ONLINE_PAYMENT_ENABLED) {
+      setError("Online payment is not available right now. Please contact the store to complete your order.");
+      return;
+    }
+
     setPlacing(true);
 
     try {
-      const orderNumber = `RB-${Date.now().toString().slice(-7)}`;
-      const deliveryAddress = selectedAddress ? savedAddressLine(selectedAddress) : manualAddressLine(form);
-      const localOrder: Order = {
-        id: orderNumber,
-        date: new Date().toISOString(),
-        total,
-        status: "Pending",
-        customerName: form.fullName,
-        email: form.email,
-        phone: form.phone,
-        address: deliveryAddress,
-        city: form.city,
-        state: form.state,
-        pincode: form.pincode,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.product.salePrice || item.product.price
-        }))
-      };
-
-      if (hasSupabaseConfig()) {
-        const supabase = getSupabaseBrowserClient();
-        const { data, error: orderError } = await supabase
-          .from("orders")
-          .insert({
-            user_id: user.id,
-            order_number: orderNumber,
-            full_name: form.fullName,
-            email: form.email,
-            phone: form.phone,
-            address: deliveryAddress,
-            city: form.city,
-            state: form.state,
-            pincode: form.pincode,
-            payment_status: "pending",
-            status: "Pending",
-            subtotal,
-            delivery_charges: deliveryCharges,
-            total
-          })
-          .select("id, order_number, created_at")
-          .single();
-
-        if (orderError) {
-          throw orderError;
-        }
-
-        const orderId = data.id;
-        const { error: itemError } = await supabase.from("order_items").insert(
-          cart.map((item) => ({
-            order_id: orderId,
-            product_id: item.product.id,
-            product_name: item.product.name,
-            quantity: item.quantity,
-            unit_price: item.product.salePrice || item.product.price,
-            total: (item.product.salePrice || item.product.price) * item.quantity
-          }))
-        );
-
-        if (itemError) {
-          throw itemError;
-        }
-
-        localOrder.id = data.order_number || orderNumber;
-        localOrder.date = data.created_at || localOrder.date;
-      }
-
-      addOrder(localOrder);
-      clearCart();
-      setConfirmation(localOrder);
+      await payWithRazorpay();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to place order.");
     } finally {
@@ -232,6 +379,20 @@ export function CheckoutClient() {
   }
 
   if (confirmation) {
+    const whatsappMessage = [
+      `Hello ${contactDetails.storeName || "Rida Boutique"}! I just placed an order.`,
+      `Order: ${confirmation.id}`,
+      `Name: ${confirmation.customerName}`,
+      `Phone: ${confirmation.phone}`,
+      `Total: ${formatCurrency(confirmation.total)}`,
+      "",
+      "Items:",
+      ...confirmation.items.map((item) => `- ${item.name} x ${item.quantity}`),
+      "",
+      "Please confirm my order. Thank you!"
+    ].join("\n");
+    const whatsappUrl = buildWhatsappUrl(contactDetails.whatsappNumber, whatsappMessage);
+
     return (
       <div className="app-container pb-12 pt-32 md:pt-40">
         <div className="mx-auto max-w-xl rounded-lg border border-stone-200 bg-white p-8 text-center dark:border-neutral-800 dark:bg-neutral-950">
@@ -240,6 +401,22 @@ export function CheckoutClient() {
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
             Your order {confirmation.id} has been placed.
           </p>
+          {whatsappUrl ? (
+            <>
+              <a
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1ebe5b] active:scale-[0.98]"
+                href={whatsappUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <MessageCircle className="size-5" />
+                Confirm on WhatsApp
+              </a>
+              <p className="mt-2 text-xs text-stone-500">
+                Send us a quick WhatsApp so we can confirm and pack your order faster.
+              </p>
+            </>
+          ) : null}
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <ButtonLink href="/orders" variant="outline">View orders</ButtonLink>
             <ButtonLink href="/products">Continue shopping</ButtonLink>
@@ -329,9 +506,24 @@ export function CheckoutClient() {
               <Input inputMode="numeric" value={form.pincode} onChange={(event) => updateField("pincode", event.target.value)} required />
             </Field>
           </div>
+          <div className="rounded-lg border border-stone-200 p-4 dark:border-neutral-800">
+            <h2 className="font-semibold">Payment</h2>
+            <div className="mt-3 flex items-start gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <CreditCard className="mt-0.5 size-5 shrink-0 text-brand-green" />
+              <span>
+                <span className="block font-semibold">Pay online (Razorpay)</span>
+                <span className="block text-stone-500">Secure payment via UPI, cards, netbanking, and wallets. Your order is confirmed after payment.</span>
+              </span>
+            </div>
+            {!ONLINE_PAYMENT_ENABLED ? (
+              <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                Online payment is not configured yet. Add Razorpay keys to enable checkout.
+              </p>
+            ) : null}
+          </div>
           {error ? <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">{error}</p> : null}
-          <Button disabled={placing || !cart.length} size="lg" type="submit">
-            {placing ? "Placing order..." : "Place order"}
+          <Button disabled={placing || !cart.length || !ONLINE_PAYMENT_ENABLED} size="lg" type="submit">
+            {placing ? "Opening payment..." : `Pay ${formatCurrency(total)}`}
           </Button>
         </form>
 

@@ -18,7 +18,6 @@ import { Drawer } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAdminProducts } from "@/lib/admin-store";
 import { cn } from "@/lib/utils";
 import type { Product, ProductCategory, StockStatus } from "@/types/commerce";
 
@@ -74,7 +73,7 @@ export function ShopExplorer({
   const [recent, setRecent] = useState<string[]>([]);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [desktopFilterPanelOpen, setDesktopFilterPanelOpen] = useState(false);
-  const catalogProducts = useAdminProducts(products);
+  const catalogProducts = products;
   const [openSections, setOpenSections] = useState<Record<FilterSection, boolean>>({
     category: true,
     price: false,

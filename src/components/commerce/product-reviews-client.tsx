@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { CheckCircle2, ShieldCheck, Star } from "lucide-react";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import {
-  getApprovedProductReviews,
-  saveAdminReview,
-  useProductRating
-} from "@/lib/admin-store";
+import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { cn, formatDate } from "@/lib/utils";
 import type { Product } from "@/types/commerce";
 
@@ -20,35 +16,67 @@ type ReviewForm = {
   text: string;
 };
 
+type ApprovedReview = {
+  id: string;
+  customer: string;
+  rating: number;
+  text: string;
+  date: string;
+};
+
 const initialForm: ReviewForm = {
   name: "",
   rating: 5,
   text: ""
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function ProductReviewsClient({ product }: { product: Product }) {
   const { toast } = useToast();
-  const rating = useProductRating(product);
-  const [version, setVersion] = useState(0);
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof ReviewForm, string>>>({});
-  const approvedReviews = useMemo(
-    () => getApprovedProductReviews(product),
-    [product, version]
-  );
+  const [approvedReviews, setApprovedReviews] = useState<ApprovedReview[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    function refresh() {
-      setVersion((current) => current + 1);
+  const productId = UUID_PATTERN.test(product.id) ? product.id : null;
+
+  const loadReviews = useCallback(async () => {
+    if (!hasSupabaseConfig() || !productId) {
+      setApprovedReviews([]);
+      return;
     }
 
-    window.addEventListener("storage", refresh);
-    window.addEventListener("rida-admin-storage", refresh);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("rida-admin-storage", refresh);
-    };
-  }, []);
+    const { data } = await getSupabaseBrowserClient()
+      .from("reviews")
+      .select("id, customer, rating, body, created_at")
+      .eq("product_id", productId)
+      .eq("status", "Approved")
+      .order("created_at", { ascending: false });
+
+    setApprovedReviews(
+      (data || []).map((row) => ({
+        id: String(row.id),
+        customer: String(row.customer || "Customer"),
+        rating: Number(row.rating || 0),
+        text: String(row.body || ""),
+        date: String(row.created_at || "")
+      }))
+    );
+  }, [productId]);
+
+  useEffect(() => {
+    void loadReviews();
+  }, [loadReviews]);
+
+  const rating = useMemo(() => {
+    if (!approvedReviews.length) {
+      return { rating: product.rating, count: product.reviewCount };
+    }
+
+    const total = approvedReviews.reduce((sum, review) => sum + review.rating, 0);
+    return { rating: total / approvedReviews.length, count: approvedReviews.length };
+  }, [approvedReviews, product.rating, product.reviewCount]);
 
   function update<K extends keyof ReviewForm>(key: K, value: ReviewForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -74,7 +102,7 @@ export function ProductReviewsClient({ product }: { product: Product }) {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function submitReview(event: FormEvent<HTMLFormElement>) {
+  async function submitReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!validate()) {
@@ -86,21 +114,41 @@ export function ProductReviewsClient({ product }: { product: Product }) {
       return;
     }
 
-    saveAdminReview({
-      id: `REV-${Date.now()}`,
-      product: product.name,
-      productId: product.id,
+    if (!hasSupabaseConfig()) {
+      toast({
+        kind: "error",
+        title: "Reviews unavailable",
+        description: "Connect the store database to accept reviews."
+      });
+      return;
+    }
+
+    setSubmitting(true);
+
+    const { error } = await getSupabaseBrowserClient().from("reviews").insert({
+      product_id: productId,
+      product_name: product.name,
       customer: form.name.trim(),
       rating: form.rating,
-      text: form.text.trim(),
-      status: "Pending",
-      date: new Date().toISOString().slice(0, 10)
+      body: form.text.trim(),
+      status: "Pending"
     });
+
+    setSubmitting(false);
+
+    if (error) {
+      toast({
+        kind: "error",
+        title: "Could not send review",
+        description: error.message
+      });
+      return;
+    }
 
     setForm(initialForm);
     toast({
       title: "Review sent for approval",
-      description: "Admin can approve it from the Reviews panel."
+      description: "Admin will approve it before it appears here."
     });
   }
 
@@ -214,8 +262,8 @@ export function ProductReviewsClient({ product }: { product: Product }) {
               placeholder="Share quality, fit, packaging, delivery, or custom experience."
             />
           </Field>
-          <Button className="w-full" type="submit">
-            Send Review
+          <Button className="w-full" disabled={submitting} type="submit">
+            {submitting ? "Sending..." : "Send Review"}
           </Button>
           <p className="text-xs leading-5 text-brand-charcoal/55">
             Review will enter the admin moderation queue before publishing.

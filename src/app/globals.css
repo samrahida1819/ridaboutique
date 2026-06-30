@@ -28,6 +28,9 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -36,6 +39,24 @@ body {
   color: var(--foreground);
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 ::selection {
@@ -91,6 +112,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .text-balance {
   text-wrap: balance;
+}
+
+/* Soft gold depth glow for hero / feature panels */
+.hero-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.hero-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(115% 85% at 88% -10%, rgba(201, 164, 91, 0.26), transparent 58%),
+    radial-gradient(95% 75% at 0% 110%, rgba(231, 215, 178, 0.12), transparent 60%);
+  pointer-events: none;
 }
 
 @media (min-width: 768px) {

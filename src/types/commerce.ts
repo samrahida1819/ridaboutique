@@ -99,12 +99,8 @@ export type OrderStatus =
   | "Confirmed"
   | "Packed"
   | "Shipped"
-  | "Confirmed"
-  | "Preparing"
-  | "Dispatched"
   | "Delivered"
-  | "Cancelled"
-  | "Return requested";
+  | "Cancelled";
 
 export type Order = {
   id: string;

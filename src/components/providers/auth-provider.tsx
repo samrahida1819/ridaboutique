@@ -76,6 +76,27 @@ function profileFromUser(user: User, role: ProfileRole = "customer"): AuthUser {
   };
 }
 
+const ADMIN_ON_CUSTOMER_LOGIN_ERROR =
+  "This is an admin account. Please use the Admin login at /admin/login.";
+
+// Returns the role stored in the profiles table for a given user id.
+// Used to keep customer and admin logins separate.
+async function fetchProfileRole(
+  supabase: ReturnType<typeof getSupabaseBrowserClient>,
+  userId?: string | null
+): Promise<ProfileRole> {
+  if (!userId) {
+    return "customer";
+  }
+
+  const { data } = await withAuthTimeout(
+    supabase.from("profiles").select("role").eq("id", userId).maybeSingle(),
+    "Role check"
+  ).catch(() => ({ data: null }));
+
+  return (data as { role?: string } | null)?.role === "admin" ? "admin" : "customer";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -212,10 +233,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         window.localStorage.removeItem(TESTING_USER_KEY);
         const supabase = getSupabaseBrowserClient();
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
           return { error: error.message };
+        }
+
+        const role = await fetchProfileRole(supabase, data.user?.id);
+        if (role === "admin") {
+          await supabase.auth.signOut().catch(() => null);
+          setUser(null);
+          return { error: ADMIN_ON_CUSTOMER_LOGIN_ERROR };
         }
 
         await refreshProfileInternal();
@@ -266,8 +294,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: "Supabase is not configured for email OTP." };
         }
 
-        const { error } = await withAuthTimeout(
-          getSupabaseBrowserClient().auth.verifyOtp({
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await withAuthTimeout(
+          supabase.auth.verifyOtp({
             email,
             token,
             type: "email"
@@ -277,6 +306,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           return { error: error.message };
+        }
+
+        const role = await fetchProfileRole(supabase, data.user?.id);
+        if (role === "admin") {
+          await supabase.auth.signOut().catch(() => null);
+          setUser(null);
+          return { error: ADMIN_ON_CUSTOMER_LOGIN_ERROR };
         }
 
         await refreshProfileInternal();

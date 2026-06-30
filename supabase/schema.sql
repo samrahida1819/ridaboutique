@@ -58,7 +58,7 @@ create table if not exists public.orders (
   city text not null,
   state text not null,
   pincode text not null,
-  payment_method text not null default 'cod' check (payment_method in ('cod', 'razorpay')),
+  payment_method text not null default 'razorpay' check (payment_method in ('cod', 'razorpay')),
   payment_status text not null default 'pending',
   status text not null default 'Pending' check (status in ('Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled')),
   subtotal numeric(12, 2) not null default 0,
@@ -354,6 +354,13 @@ create policy "Admins can upload product images"
 on storage.objects for insert
 with check (bucket_id = 'product-images' and public.is_admin());
 
+-- Logged-in customers can upload custom order reference images into the custom-orders/ folder.
+drop policy if exists "Customers can upload custom order references" on storage.objects;
+create policy "Customers can upload custom order references"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = 'custom-orders');
+
 drop policy if exists "Admins can update product images" on storage.objects;
 create policy "Admins can update product images"
 on storage.objects for update
@@ -417,5 +424,134 @@ values
   ('youtube_link', '"https://youtube.com"'::jsonb)
 on conflict (key) do nothing;
 
--- After creating your first admin user through Supabase Auth, promote it manually:
--- update public.profiles set role = 'admin' where email = 'admin@example.com';
+-- =====================================================================
+-- Custom orders, saved addresses, and product reviews
+-- =====================================================================
+
+create table if not exists public.custom_orders (
+  id uuid primary key default gen_random_uuid(),
+  reference text not null unique,
+  full_name text not null,
+  phone text not null,
+  email text,
+  product_type text not null,
+  quantity integer not null default 1 check (quantity > 0),
+  description text not null,
+  reference_links text,
+  reference_image_url text,
+  budget text,
+  delivery_date date,
+  delivery_area text,
+  notes text,
+  status text not null default 'Pending' check (status in ('Pending', 'Approved', 'Rejected', 'Converted')),
+  quoted_price numeric(12, 2) check (quoted_price is null or quoted_price >= 0),
+  admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.addresses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  label text not null default 'Address',
+  full_name text not null,
+  phone text not null,
+  address text,
+  district text not null,
+  pincode text not null,
+  landmark text,
+  is_default boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists addresses_user_id_idx on public.addresses(user_id);
+
+create table if not exists public.reviews (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references public.products(id) on delete cascade,
+  product_name text,
+  customer text not null,
+  rating integer not null check (rating between 1 and 5),
+  body text not null,
+  status text not null default 'Pending' check (status in ('Pending', 'Approved', 'Rejected')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists reviews_product_id_idx on public.reviews(product_id);
+
+-- Link custom orders to a customer account (nullable for guest submissions).
+alter table public.custom_orders add column if not exists user_id uuid references auth.users(id) on delete set null;
+create index if not exists custom_orders_user_id_idx on public.custom_orders(user_id);
+
+drop trigger if exists custom_orders_set_updated_at on public.custom_orders;
+create trigger custom_orders_set_updated_at before update on public.custom_orders for each row execute function public.set_updated_at();
+drop trigger if exists addresses_set_updated_at on public.addresses;
+create trigger addresses_set_updated_at before update on public.addresses for each row execute function public.set_updated_at();
+drop trigger if exists reviews_set_updated_at on public.reviews;
+create trigger reviews_set_updated_at before update on public.reviews for each row execute function public.set_updated_at();
+
+alter table public.custom_orders enable row level security;
+alter table public.addresses enable row level security;
+alter table public.reviews enable row level security;
+
+-- Custom orders: anyone can submit a request; customers see their own, admins manage all.
+drop policy if exists "Anyone can submit custom orders" on public.custom_orders;
+create policy "Anyone can submit custom orders"
+on public.custom_orders for insert
+with check (status = 'Pending' and (user_id is null or user_id = auth.uid()));
+
+drop policy if exists "Customers can view own custom orders" on public.custom_orders;
+create policy "Customers can view own custom orders"
+on public.custom_orders for select
+using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Admins can manage custom orders" on public.custom_orders;
+create policy "Admins can manage custom orders"
+on public.custom_orders for all
+using (public.is_admin())
+with check (public.is_admin());
+
+-- Addresses: customers manage their own, admins can view all.
+drop policy if exists "Customers can view own addresses" on public.addresses;
+create policy "Customers can view own addresses"
+on public.addresses for select
+using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Customers can insert own addresses" on public.addresses;
+create policy "Customers can insert own addresses"
+on public.addresses for insert
+with check (user_id = auth.uid());
+
+drop policy if exists "Customers can update own addresses" on public.addresses;
+create policy "Customers can update own addresses"
+on public.addresses for update
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists "Customers can delete own addresses" on public.addresses;
+create policy "Customers can delete own addresses"
+on public.addresses for delete
+using (user_id = auth.uid());
+
+-- Reviews: public can read approved, anyone can submit pending, admins moderate.
+drop policy if exists "Public can view approved reviews" on public.reviews;
+create policy "Public can view approved reviews"
+on public.reviews for select
+using (status = 'Approved' or public.is_admin());
+
+drop policy if exists "Anyone can submit reviews" on public.reviews;
+create policy "Anyone can submit reviews"
+on public.reviews for insert
+with check (status = 'Pending');
+
+drop policy if exists "Admins can manage reviews" on public.reviews;
+create policy "Admins can manage reviews"
+on public.reviews for all
+using (public.is_admin())
+with check (public.is_admin());
+
+-- To create/update the default admin Auth user, run supabase/admin_setup.sql.
+-- To promote an existing Auth user manually:
+-- update public.profiles set role = 'admin' where email = 'admin@ridaboutique.in';

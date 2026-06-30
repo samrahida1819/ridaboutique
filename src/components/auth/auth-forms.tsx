@@ -13,7 +13,7 @@ type LoginMethod = "otp" | "password";
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, sendEmailOtp, signIn, signUp, resetPassword, testingLogin, verifyEmailOtp } = useAuth();
+  const { isAuthenticated, sendEmailOtp, signIn, signUp, resetPassword, user, verifyEmailOtp } = useAuth();
   const next = searchParams.get("next") || "/account";
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,16 +21,23 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>("otp");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && mode === "login") {
-      router.replace(next);
+    if (!isAuthenticated || mode !== "login") {
+      return;
     }
-  }, [isAuthenticated, mode, next, router]);
+
+    if (user?.role === "admin") {
+      router.replace("/admin");
+      return;
+    }
+
+    router.replace(next);
+  }, [isAuthenticated, mode, next, router, user]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,17 +71,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    if (mode === "login") {
+    if (mode === "login" || mode === "signup") {
       router.replace(next);
     }
-    if (mode === "signup") {
-      router.replace("/account");
-    }
-  }
-
-  async function continueWithTestingCustomer() {
-    await testingLogin("customer");
-    router.replace(next);
   }
 
   const title = mode === "login" ? "Login" : mode === "signup" ? "Create account" : "Reset password";
@@ -191,21 +190,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             </button>
           ) : null}
         </form>
-        {mode === "login" ? (
-          <div className="mt-4 rounded-2xl border border-brand-green/10 bg-brand-cream p-4">
-            <p className="text-sm font-semibold text-brand-green">Testing login</p>
-            <p className="mt-1 text-xs leading-5 text-brand-charcoal/60">
-              Opens a local customer session with demo profile details, so account, wishlist, cart, and Buy now can be tested.
-            </p>
-            <Button className="mt-3 w-full" onClick={() => void continueWithTestingCustomer()} variant="secondary">
-              Continue with testing customer
-            </Button>
-          </div>
-        ) : null}
         <div className="mt-5 grid gap-2 text-sm text-stone-600 dark:text-stone-300">
           {mode !== "login" ? <Link className="hover:underline" href="/login">Already have an account? Login</Link> : null}
           {mode !== "signup" ? <Link className="hover:underline" href="/signup">Create a new account</Link> : null}
           {mode !== "reset" ? <Link className="hover:underline" href="/reset-password">Forgot password?</Link> : null}
+          {mode === "login" ? <Link className="hover:underline" href="/admin/login">Admin login</Link> : null}
         </div>
       </div>
     </section>

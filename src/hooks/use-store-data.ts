@@ -45,8 +45,8 @@ type BannerState = {
 };
 
 export function useCatalog(activeOnly = true): CatalogState {
-  const [products, setProducts] = useState<Product[]>(fallbackProducts);
-  const [categories, setCategories] = useState<Category[]>(fallbackCategories);
+  const [products, setProducts] = useState<Product[]>(hasSupabaseConfig() ? [] : fallbackProducts);
+  const [categories, setCategories] = useState<Category[]>(hasSupabaseConfig() ? [] : fallbackCategories);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -98,12 +98,12 @@ export function useCatalog(activeOnly = true): CatalogState {
           });
         });
 
-      setCategories(nextCategories.length ? nextCategories : fallbackCategories);
-      setProducts(nextProducts.length ? nextProducts : fallbackProducts);
+      // Supabase is configured: show real admin data only (empty stays empty,
+      // never silently replace it with the bundled demo catalog).
+      setCategories(nextCategories);
+      setProducts(nextProducts);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to load catalog.");
-      setProducts(fallbackProducts);
-      setCategories(fallbackCategories);
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,7 @@ export function useCatalog(activeOnly = true): CatalogState {
 }
 
 export function useBanners(activeOnly = true): BannerState {
-  const [banners, setBanners] = useState<Banner[]>(fallbackBanners);
+  const [banners, setBanners] = useState<Banner[]>(hasSupabaseConfig() ? [] : fallbackBanners);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -161,10 +161,9 @@ export function useBanners(activeOnly = true): BannerState {
         sortOrder: Number(banner.sort_order || 0)
       }));
 
-      setBanners(nextBanners.length ? nextBanners : fallbackBanners);
+      setBanners(nextBanners);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to load banners.");
-      setBanners(fallbackBanners);
     } finally {
       setLoading(false);
     }

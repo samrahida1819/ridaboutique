@@ -19,6 +19,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Star,
   Trash2,
   Truck,
@@ -32,7 +33,25 @@ import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Order, SavedAddress } from "@/types/commerce";
 
-type AccountPanel = "overview" | "profile" | "addresses" | "orders" | "essentials";
+type AccountPanel = "overview" | "profile" | "addresses" | "orders" | "custom" | "essentials";
+
+type CustomOrderRow = {
+  reference: string;
+  productType: string;
+  quantity: number;
+  status: string;
+  quotedPrice: number | null;
+  adminNote: string;
+  deliveryDate: string;
+  date: string;
+};
+
+const customStatusStyles: Record<string, string> = {
+  Pending: "bg-amber-100 text-amber-800",
+  Approved: "bg-emerald-100 text-emerald-800",
+  Rejected: "bg-red-100 text-red-700",
+  Converted: "bg-brand-green text-brand-ivory"
+};
 
 type AddressForm = Omit<SavedAddress, "id">;
 
@@ -108,6 +127,8 @@ export function AccountClient() {
   const [savingAddress, setSavingAddress] = useState(false);
   const [accountOrders, setAccountOrders] = useState<Order[]>(localOrders);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [customOrders, setCustomOrders] = useState<CustomOrderRow[]>([]);
+  const [customLoading, setCustomLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -164,6 +185,58 @@ export function AccountClient() {
       active = false;
     };
   }, [localOrders, user]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCustomOrders() {
+      if (!user || !hasSupabaseConfig() || user.id.startsWith("testing-")) {
+        setCustomOrders([]);
+        setCustomLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await getSupabaseBrowserClient()
+          .from("custom_orders")
+          .select("reference, product_type, quantity, status, quoted_price, admin_note, delivery_date, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (!active) {
+          return;
+        }
+
+        setCustomOrders(
+          (data || []).map((row) => ({
+            reference: String(row.reference || "-"),
+            productType: String(row.product_type || "Custom"),
+            quantity: Number(row.quantity || 1),
+            status: String(row.status || "Pending"),
+            quotedPrice: row.quoted_price === null || row.quoted_price === undefined ? null : Number(row.quoted_price),
+            adminNote: typeof row.admin_note === "string" ? row.admin_note : "",
+            deliveryDate: typeof row.delivery_date === "string" ? row.delivery_date : "",
+            date: String(row.created_at || new Date().toISOString())
+          }))
+        );
+      } catch {
+        if (active) {
+          setCustomOrders([]);
+        }
+      } finally {
+        if (active) {
+          setCustomLoading(false);
+        }
+      }
+    }
+
+    setCustomLoading(true);
+    void loadCustomOrders();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const defaultAddress = useMemo(
     () => savedAddresses.find((item) => item.isDefault) || savedAddresses[0],
@@ -270,6 +343,13 @@ export function AccountClient() {
       value: String(accountOrders.length),
       detail: ordersLoading ? "Loading recent orders" : recentOrders[0]?.status || "No active orders",
       icon: PackageCheck
+    },
+    {
+      id: "custom" as const,
+      title: "Custom Orders",
+      value: customLoading ? "..." : String(customOrders.length),
+      detail: customLoading ? "Loading requests" : customOrders[0]?.status || "No requests yet",
+      icon: Sparkles
     },
     {
       id: "addresses" as const,
@@ -510,6 +590,62 @@ export function AccountClient() {
                 View full orders
                 <ArrowRight className="size-4" />
               </ButtonLink>
+            </div>
+          ) : null}
+
+          {activePanel === "custom" ? (
+            <div className="rounded-xl border border-brand-green/10 bg-white p-4 shadow-luxury sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <PanelHeading icon={Sparkles} title="Custom orders" text="Track the status of your custom requests and quotes." />
+                <ButtonLink className="w-full shrink-0 sm:w-auto" href="/custom-orders" variant="secondary">
+                  <Plus className="size-4" />
+                  New request
+                </ButtonLink>
+              </div>
+              <div className="mt-5 grid gap-3">
+                {customLoading ? (
+                  <div className="rounded-xl bg-brand-ivory p-6 text-center">
+                    <Sparkles className="mx-auto size-8 animate-pulse text-brand-gold" />
+                    <p className="mt-3 font-serif text-2xl text-brand-green">Loading requests</p>
+                  </div>
+                ) : customOrders.length ? (
+                  customOrders.map((order) => (
+                    <article className="rounded-xl border border-brand-green/10 bg-brand-ivory p-4" key={order.reference}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-brand-green">{order.productType} <span className="text-brand-charcoal/45">x{order.quantity}</span></p>
+                          <p className="mt-1 text-xs text-brand-charcoal/55">{order.reference} - {formatDate(order.date)}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${customStatusStyles[order.status] || "bg-brand-cream text-brand-green"}`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      {order.quotedPrice !== null ? (
+                        <p className="mt-3 text-sm">
+                          <span className="text-brand-charcoal/55">Quoted price: </span>
+                          <span className="font-bold text-brand-charcoal">{formatCurrency(order.quotedPrice)}</span>
+                        </p>
+                      ) : null}
+                      {order.adminNote ? (
+                        <p className="mt-2 rounded-lg bg-white p-3 text-sm leading-6 text-brand-charcoal/70">
+                          <span className="font-semibold text-brand-green">Note from team: </span>
+                          {order.adminNote}
+                        </p>
+                      ) : null}
+                      {order.status === "Approved" && order.quotedPrice !== null ? (
+                        <p className="mt-2 text-xs font-semibold text-emerald-700">Approved - our team will reach out to finalise and collect payment.</p>
+                      ) : null}
+                    </article>
+                  ))
+                ) : (
+                  <div className="rounded-xl bg-brand-ivory p-6 text-center">
+                    <Sparkles className="mx-auto size-8 text-brand-gold" />
+                    <p className="mt-3 font-serif text-2xl text-brand-green">No custom requests yet</p>
+                    <p className="mt-2 text-sm leading-6 text-brand-charcoal/62">Send a custom order request and track its status here.</p>
+                    <ButtonLink className="mt-4" href="/custom-orders">Create custom order</ButtonLink>
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
 

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/providers/toast-provider";
-import { ADMIN_MESSAGES_KEY } from "@/lib/admin-store";
+import { useContactDetails } from "@/hooks/use-store-data";
+import { buildWhatsappUrl } from "@/lib/whatsapp";
 
 type ContactFormState = {
   name: string;
@@ -25,6 +26,7 @@ const initialState: ContactFormState = {
 
 export function ContactForm() {
   const { toast } = useToast();
+  const { contactDetails } = useContactDetails();
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormState, string>>>({});
 
@@ -46,22 +48,34 @@ export function ContactForm() {
       return;
     }
 
-    const message = {
-      id: `MSG-${Date.now()}`,
-      ...form,
-      status: "New",
-      date: new Date().toISOString().slice(0, 10),
-      replyNote: ""
-    };
-    const storedMessages = window.localStorage.getItem(ADMIN_MESSAGES_KEY);
-    const messages = storedMessages ? JSON.parse(storedMessages) : [];
-    window.localStorage.setItem(ADMIN_MESSAGES_KEY, JSON.stringify([message, ...messages]));
-    window.dispatchEvent(new CustomEvent("rida-admin-storage", { detail: { key: ADMIN_MESSAGES_KEY } }));
+    const text = [
+      `New enquiry for ${contactDetails.storeName || "Rida Boutique"}`,
+      `Topic: ${form.topic}`,
+      `Name: ${form.name}`,
+      `Email: ${form.email}`,
+      form.phone ? `Phone: ${form.phone}` : "",
+      "",
+      form.message
+    ]
+      .filter(Boolean)
+      .join("\n");
 
+    const whatsappUrl = buildWhatsappUrl(contactDetails.whatsappNumber, text);
+
+    if (!whatsappUrl) {
+      toast({
+        kind: "error",
+        title: "WhatsApp number not set",
+        description: "Please call or email us directly for now."
+      });
+      return;
+    }
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     setForm(initialState);
     toast({
-      title: "Message received",
-      description: "Rida Boutique support will respond by email or WhatsApp."
+      title: "Opening WhatsApp",
+      description: "Send the prefilled message and our team will reply quickly."
     });
   }
 
@@ -89,7 +103,7 @@ export function ContactForm() {
         <Textarea value={form.message} onChange={(event) => update("message", event.target.value)} />
       </Field>
       <Button className="w-full md:w-auto md:justify-self-end" type="submit">
-        Send Message
+        Send on WhatsApp
       </Button>
     </form>
   );

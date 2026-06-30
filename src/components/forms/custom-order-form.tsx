@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Gift,
   ImageIcon,
   Link2,
+  LockKeyhole,
   Mail,
   MapPin,
   Package,
@@ -16,12 +17,13 @@ import {
   UploadCloud,
   UserRound
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/providers/auth-provider";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/providers/toast-provider";
-import { cloudinaryConfig } from "@/lib/cloudinary";
-import { ADMIN_CUSTOM_ORDERS_KEY } from "@/lib/admin-store";
+import { hasCloudinaryUploadConfig, uploadToCloudinary } from "@/lib/cloudinary";
+import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type FormState = {
@@ -99,10 +101,25 @@ const initialState: FormState = {
 
 export function CustomOrderForm() {
   const { toast } = useToast();
+  const { authReady, isAuthenticated, user } = useAuth();
   const [form, setForm] = useState<FormState>(initialState);
   const [fileName, setFileName] = useState("");
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      fullName: current.fullName || user.name || "",
+      email: current.email || user.email || "",
+      phone: current.phone || user.phone || ""
+    }));
+  }, [user]);
 
   const selectedType = productTypes.find((type) => type.label === form.productType) || productTypes[0];
   const minDeliveryDate = useMemo(() => {
@@ -136,46 +153,6 @@ export function CustomOrderForm() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function saveRequestToAdminQueue() {
-    const request = {
-      id: `CO-${Date.now().toString().slice(-5)}`,
-      customer: form.fullName.trim(),
-      type: form.productType,
-      budget: form.budget.trim() || "Not shared",
-      status: "Pending" as const,
-      requestedFor: form.deliveryDate,
-      internalNote: form.notes.trim(),
-      phone: form.phone.trim(),
-      email: form.email.trim(),
-      quantity: Number(form.quantity) || 1,
-      description: form.description.trim(),
-      referenceImage: fileName,
-      referenceLinks: form.referenceLinks.trim(),
-      stage: "Request",
-      quotedPrice: 0,
-      advancePaid: 0,
-      paymentStatus: "Unpaid"
-    };
-
-    try {
-      const storedValue = window.localStorage.getItem(ADMIN_CUSTOM_ORDERS_KEY);
-      const storedRequests = storedValue ? JSON.parse(storedValue) : [];
-      const requests = Array.isArray(storedRequests) ? storedRequests : [];
-
-      window.localStorage.setItem(ADMIN_CUSTOM_ORDERS_KEY, JSON.stringify([request, ...requests]));
-      window.dispatchEvent(
-        new CustomEvent("rida-admin-storage", { detail: { key: ADMIN_CUSTOM_ORDERS_KEY } })
-      );
-    } catch {
-      window.localStorage.setItem(ADMIN_CUSTOM_ORDERS_KEY, JSON.stringify([request]));
-      window.dispatchEvent(
-        new CustomEvent("rida-admin-storage", { detail: { key: ADMIN_CUSTOM_ORDERS_KEY } })
-      );
-    }
-
-    return request.id;
-  }
-
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!validate()) {
@@ -188,30 +165,117 @@ export function CustomOrderForm() {
     }
 
     setSubmitting(true);
-    const requestId = saveRequestToAdminQueue();
-    let apiSaved = false;
 
-    try {
-      const response = await fetch("/api/custom-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, referenceImage: fileName, requestId })
-      });
+    let referenceImageUrl = "";
+    if (referenceFile) {
+      if (referenceFile.size > 5 * 1024 * 1024) {
+        setSubmitting(false);
+        toast({ kind: "error", title: "Image too large", description: "Reference image must be under 5MB." });
+        return;
+      }
 
-      apiSaved = response.ok;
-    } catch {
-      apiSaved = false;
+      try {
+        if (hasSupabaseConfig()) {
+          const supabase = getSupabaseBrowserClient();
+          const extension = referenceFile.name.split(".").pop()?.toLowerCase() || "jpg";
+          const path = `custom-orders/${crypto.randomUUID()}.${extension}`;
+          const { error: uploadError } = await supabase.storage.from("product-images").upload(path, referenceFile, {
+            cacheControl: "31536000",
+            contentType: referenceFile.type || "image/jpeg",
+            upsert: false
+          });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          referenceImageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+        } else if (hasCloudinaryUploadConfig()) {
+          referenceImageUrl = await uploadToCloudinary(referenceFile);
+        }
+      } catch (uploadError) {
+        setSubmitting(false);
+        toast({
+          kind: "error",
+          title: "Image upload failed",
+          description: uploadError instanceof Error ? uploadError.message : "Please try again or submit without an image."
+        });
+        return;
+      }
     }
 
-    setSubmitting(false);
-    setForm(initialState);
-    setFileName("");
-    toast({
-      title: "Custom request submitted",
-      description: apiSaved
-        ? "Team will review it and contact you with the final price before payment."
-        : `Saved as ${requestId}. Admin can process it from Custom Orders.`
-    });
+    try {
+      let accessToken = "";
+      if (hasSupabaseConfig()) {
+        const { data } = await getSupabaseBrowserClient().auth.getSession();
+        accessToken = data.session?.access_token || "";
+      }
+
+      const response = await fetch("/api/custom-orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify({ ...form, referenceImageUrl })
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { id?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to submit request.");
+      }
+
+      setForm(initialState);
+      setFileName("");
+      setReferenceFile(null);
+      toast({
+        title: "Custom request submitted",
+        description: payload.id
+          ? `Saved as ${payload.id}. We will contact you with the final price before payment.`
+          : "Team will review it and contact you with the final price before payment."
+      });
+    } catch (error) {
+      toast({
+        kind: "error",
+        title: "Could not submit request",
+        description: error instanceof Error ? error.message : "Please try again."
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!authReady) {
+    return (
+      <div className="rounded-2xl border border-brand-green/10 bg-white p-6 text-center shadow-luxury md:p-8">
+        <div className="mx-auto size-9 animate-pulse rounded-full bg-brand-cream" />
+        <p className="mt-4 font-serif text-2xl text-brand-green">Checking your session...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="rounded-2xl border border-brand-green/10 bg-white p-6 text-center shadow-luxury md:p-10">
+        <span className="mx-auto grid size-12 place-items-center rounded-full bg-brand-cream text-brand-gold">
+          <LockKeyhole className="size-6" />
+        </span>
+        <h2 className="mt-5 font-serif text-3xl text-brand-green">Login to place a custom order</h2>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-brand-charcoal/65">
+          Custom orders are tied to your account so you can track status, quotes, and updates from your profile.
+          Please log in or create an account to continue.
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <ButtonLink href="/login?next=/custom-orders" size="lg">
+            Login to continue
+          </ButtonLink>
+          <ButtonLink href="/signup?next=/custom-orders" size="lg" variant="secondary">
+            Create account
+          </ButtonLink>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -326,14 +390,18 @@ export function CustomOrderForm() {
               <UploadCloud className="mb-3 size-6" />
               {fileName || "Upload reference image"}
               <span className="mt-2 max-w-xs text-xs font-normal leading-5 text-brand-charcoal/50">
-                Photo, screenshot, logo, color palette, or design reference. Preset: {cloudinaryConfig.uploadPreset}
+                Photo, screenshot, logo, color palette, or design reference. JPG or PNG, max 5MB (around 1000px works best).
               </span>
             </span>
             <input
               accept="image/*"
               className="sr-only"
               type="file"
-              onChange={(event) => setFileName(event.target.files?.[0]?.name || "")}
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                setReferenceFile(file);
+                setFileName(file?.name || "");
+              }}
             />
           </label>
           <Field label="Reference Links">

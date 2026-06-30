@@ -5,27 +5,30 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
   Contact,
+  ExternalLink,
   Home,
   ImageIcon,
   LayoutDashboard,
   LogOut,
   Package,
-  Search,
   Settings,
   ShoppingCart,
+  Sparkles,
+  Star,
   Users,
   FileText
 } from "lucide-react";
 import { AdminOnlyMessage, AuthLoading, useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/providers/theme-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Custom Orders", href: "/admin/custom-orders", icon: Sparkles },
+  { label: "Reviews", href: "/admin/reviews", icon: Star },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Categories", href: "/admin/categories", icon: Boxes },
   { label: "Banners", href: "/admin/banners", icon: ImageIcon },
@@ -70,7 +73,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user?.role !== "admin") {
+  if (user?.role !== "admin" || user.id.startsWith("testing-")) {
     return (
       <main className="min-h-screen bg-stone-100 p-6 dark:bg-neutral-950">
         <AdminOnlyMessage />
@@ -109,13 +112,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 p-3 dark:border-neutral-800 dark:bg-neutral-900/95">
           <div className="flex items-center gap-3">
-            <div className="relative hidden min-w-0 max-w-md flex-1 md:block">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
-              <Input className="h-10 pl-9" placeholder="Search dashboard" />
-            </div>
+            <Link className="inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-semibold lg:hidden" href="/">
+              <Home className="size-4" />
+              Rida Boutique
+            </Link>
             <div className="ml-auto flex items-center gap-2">
+              <ButtonLink className="hidden sm:inline-flex" href="/" rel="noreferrer" size="sm" target="_blank" variant="outline">
+                <ExternalLink className="size-4" />View store
+              </ButtonLink>
               <ThemeToggle compact />
-              <div className="hidden text-right text-xs sm:block">
+              <div className="hidden text-right text-xs md:block">
                 <p className="font-semibold">{user.name}</p>
                 <p className="text-stone-500">{user.email}</p>
               </div>
@@ -125,19 +131,25 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-            {navItems.map((item) => (
-              <button
-                className={cn(
-                  "shrink-0 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium dark:border-neutral-800 dark:bg-neutral-950",
-                  pathname === item.href && "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950"
-                )}
-                key={item.href}
-                onClick={() => router.push(item.href)}
-                type="button"
-              >
-                {item.label}
-              </button>
-            ))}
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+
+              return (
+                <button
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium dark:border-neutral-800 dark:bg-neutral-950",
+                    active && "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950"
+                  )}
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  type="button"
+                >
+                  <Icon className="size-3.5" />
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
         </header>
         <main className="p-4 sm:p-6">{children}</main>

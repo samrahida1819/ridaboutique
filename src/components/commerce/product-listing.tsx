@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { ShopExplorer } from "@/components/commerce/shop-explorer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCatalog } from "@/hooks/use-store-data";
 
 export function ProductListing() {
@@ -12,7 +13,7 @@ export function ProductListing() {
   return (
     <main className="min-h-screen bg-brand-ivory pt-28 sm:pt-32 md:pt-40">
       <section className="luxury-container pb-8 sm:pb-10">
-        <div className="mb-4 rounded-xl bg-brand-green p-4 text-brand-ivory shadow-luxury sm:mb-6 sm:rounded-2xl sm:p-7">
+        <div className="hero-glow mb-4 overflow-hidden rounded-xl bg-brand-green p-4 text-brand-ivory shadow-luxury sm:mb-6 sm:rounded-2xl sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-gold">
             Rida Boutique
           </p>
@@ -25,12 +26,19 @@ export function ProductListing() {
         </div>
         {error ? (
           <div className="mb-5 rounded-2xl border border-brand-green/10 bg-white p-4 text-sm text-brand-charcoal/65 shadow-luxury">
-            Showing local sample products because Supabase returned: {error}
+            Couldn&apos;t load the catalog: {error}
           </div>
         ) : null}
         {showLoadingState ? (
-          <div className="rounded-2xl border border-brand-green/10 bg-white p-8 text-sm font-semibold text-brand-green shadow-luxury">
-            Loading catalog...
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div className="rounded-xl bg-white p-2 ring-1 ring-brand-green/8 sm:rounded-2xl sm:p-3" key={index}>
+                <Skeleton className="aspect-square w-full rounded-lg sm:rounded-xl" />
+                <Skeleton className="mt-3 h-4 w-4/5 rounded-md" />
+                <Skeleton className="mt-2 h-4 w-1/3 rounded-md" />
+                <Skeleton className="mt-3 h-9 w-full rounded-full sm:h-10" />
+              </div>
+            ))}
           </div>
         ) : (
           <ShopExplorer initialQuery={searchParams.get("query") || undefined} products={products} />

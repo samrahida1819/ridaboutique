@@ -8,10 +8,10 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { CheckCircle2, Info, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type ToastKind = "success" | "info";
+type ToastKind = "success" | "info" | "error";
 
 type Toast = {
   id: string;
@@ -57,7 +57,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="fixed bottom-5 right-5 z-[90] flex w-[min(92vw,380px)] flex-col gap-3">
         {toasts.map((item) => {
-          const Icon = item.kind === "success" ? CheckCircle2 : Info;
+          const Icon = item.kind === "success" ? CheckCircle2 : item.kind === "error" ? AlertCircle : Info;
           return (
             <div
               className="rounded-lg border border-stone-200 bg-white p-4 text-neutral-950 shadow-lg dark:border-neutral-800 dark:bg-neutral-950 dark:text-stone-100"

@@ -1,4 +1,4 @@
-import { AdminCategoriesPage } from "@/components/admin/admin-pages";
+import { AdminCategoriesPage } from "@/components/admin/categories-page";
 
 export default function AdminCategoriesRoute() {
   return <AdminCategoriesPage />;

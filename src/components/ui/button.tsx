@@ -38,7 +38,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 ease-luxury disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 ease-luxury active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         sizes[size],
         className
@@ -72,7 +72,7 @@ export function ButtonLink<T extends ElementType = typeof Link>({
   return (
     <Component
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 ease-luxury",
+        "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 ease-luxury active:scale-[0.97]",
         variants[variant],
         sizes[size],
         className

@@ -16,6 +16,7 @@ export function CollectionCard({ collection }: { collection: Collection }) {
           fill
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
           src={collection.image}
+          unoptimized
         />
         <div className="absolute inset-0 bg-brand-green/10 transition group-hover:bg-brand-green/25" />
       </div>
