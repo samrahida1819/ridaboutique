@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
@@ -18,68 +19,55 @@ import {
   Users,
   FileText
 } from "lucide-react";
-import { AdminOnlyMessage, AuthLoading, useAuth } from "@/components/providers/auth-provider";
+import { AuthLoading, useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/providers/theme-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Products", href: "/admin/products", icon: Package },
-  { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
-  { label: "Custom Orders", href: "/admin/custom-orders", icon: Sparkles },
-  { label: "Reviews", href: "/admin/reviews", icon: Star },
-  { label: "Customers", href: "/admin/customers", icon: Users },
-  { label: "Categories", href: "/admin/categories", icon: Boxes },
-  { label: "Banners", href: "/admin/banners", icon: ImageIcon },
-  { label: "Content", href: "/admin/content", icon: FileText },
-  { label: "Contact Details", href: "/admin/contact-details", icon: Contact },
-  { label: "Settings", href: "/admin/settings", icon: Settings }
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Products", href: "/dashboard/products", icon: Package },
+  { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
+  { label: "Custom Orders", href: "/dashboard/custom-orders", icon: Sparkles },
+  { label: "Reviews", href: "/dashboard/reviews", icon: Star },
+  { label: "Customers", href: "/dashboard/customers", icon: Users },
+  { label: "Categories", href: "/dashboard/categories", icon: Boxes },
+  { label: "Banners", href: "/dashboard/banners", icon: ImageIcon },
+  { label: "Content", href: "/dashboard/content", icon: FileText },
+  { label: "Contact Details", href: "/dashboard/contact-details", icon: Contact },
+  { label: "Settings", href: "/dashboard/settings", icon: Settings }
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { authReady, isAuthenticated, signOut, user } = useAuth();
+  const loginPath = `/dashboard/login?next=${encodeURIComponent(pathname || "/dashboard")}`;
+  const isAdmin = Boolean(user && user.role === "admin" && !user.id.startsWith("testing-"));
 
-  if (pathname === "/admin/login") {
+  useEffect(() => {
+    if (!authReady || pathname === "/dashboard/login") {
+      return;
+    }
+
+    if (!isAuthenticated || !isAdmin) {
+      router.replace(loginPath);
+    }
+  }, [authReady, isAdmin, isAuthenticated, loginPath, pathname, router]);
+
+  if (pathname === "/dashboard/login") {
     return <>{children}</>;
   }
 
-  if (!authReady) {
+  if (!authReady || !isAuthenticated || !isAdmin || !user) {
     return (
       <main className="min-h-screen bg-stone-100 p-6 dark:bg-neutral-950">
-        <AuthLoading />
+        <AuthLoading title="Opening admin login" />
       </main>
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <main className="min-h-screen bg-stone-100 p-6 dark:bg-neutral-950">
-        <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-md place-items-center">
-          <div className="w-full rounded-lg border border-stone-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-            <LayoutDashboard className="mx-auto size-9" />
-            <h1 className="mt-4 text-2xl font-semibold">Admin login required</h1>
-            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-stone-600 dark:text-stone-300">
-              Use the separate admin login to access dashboard tools.
-            </p>
-            <ButtonLink className="mt-6" href={`/admin/login?next=${encodeURIComponent(pathname || "/admin")}`}>
-              Admin Login
-            </ButtonLink>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (user?.role !== "admin" || user.id.startsWith("testing-")) {
-    return (
-      <main className="min-h-screen bg-stone-100 p-6 dark:bg-neutral-950">
-        <AdminOnlyMessage />
-      </main>
-    );
-  }
+  const adminUser = user;
 
   return (
     <div className="min-h-screen bg-stone-100 text-neutral-950 dark:bg-neutral-950 dark:text-stone-100">
@@ -91,7 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <nav className="mt-5 grid gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
             return (
               <Link
                 className={cn(
@@ -122,10 +110,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </ButtonLink>
               <ThemeToggle compact />
               <div className="hidden text-right text-xs md:block">
-                <p className="font-semibold">{user.name}</p>
-                <p className="text-stone-500">{user.email}</p>
+                <p className="font-semibold">{adminUser.name}</p>
+                <p className="text-stone-500">{adminUser.email}</p>
               </div>
-              <Button onClick={() => void signOut()} size="icon" variant="outline">
+              <Button onClick={() => void signOut("/dashboard/login")} size="icon" variant="outline">
                 <LogOut className="size-4" />
               </Button>
             </div>
@@ -133,7 +121,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+              const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
               return (
                 <button

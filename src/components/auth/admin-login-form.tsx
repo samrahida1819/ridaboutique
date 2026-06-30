@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { LayoutDashboard, LockKeyhole } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/providers/theme-provider";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -20,7 +20,7 @@ type AdminLoginResponse = {
 export function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { authReady, refreshProfile, signOut, user } = useAuth();
+  const { authReady, refreshProfile, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,8 +28,8 @@ export function AdminLoginForm() {
   const [submitting, setSubmitting] = useState(false);
 
   const nextPath = useMemo(() => {
-    const next = searchParams.get("next") || "/admin";
-    return next.startsWith("/admin") && next !== "/admin/login" ? next : "/admin";
+    const next = searchParams.get("next") || "/dashboard";
+    return next.startsWith("/dashboard") && next !== "/dashboard/login" ? next : "/dashboard";
   }, [searchParams]);
 
   useEffect(() => {
@@ -39,10 +39,7 @@ export function AdminLoginForm() {
 
     if (user.role === "admin") {
       router.replace(nextPath);
-      return;
     }
-
-    setError("This email is signed in, but it is not marked as admin.");
   }, [authReady, nextPath, router, user]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -104,64 +101,40 @@ export function AdminLoginForm() {
             </div>
           </div>
 
-          {user && user.role !== "admin" ? (
-            <div className="mt-6 rounded-md border border-stone-200 bg-stone-100 p-4 dark:border-neutral-800 dark:bg-neutral-950">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <LockKeyhole className="size-4" />
-                Admin access required
+          <form className="mt-6 grid gap-4" onSubmit={submit}>
+            <Field label="Admin email">
+              <Input
+                autoComplete="email"
+                autoFocus
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Password">
+              <Input
+                autoComplete="current-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </Field>
+            {error ? (
+              <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
+                {error}
               </p>
-              <p className="mt-2 text-sm leading-6 text-stone-600 dark:text-stone-300">
-                Signed in as {user.email}. Promote this profile to admin, or logout and use an admin account.
+            ) : null}
+            {message ? (
+              <p className="rounded-md bg-stone-100 p-3 text-sm text-stone-700 dark:bg-neutral-950 dark:text-stone-200">
+                {message}
               </p>
-              <Button className="mt-4" onClick={() => void signOut()} variant="outline">
-                Logout
-              </Button>
-            </div>
-          ) : (
-            <form className="mt-6 grid gap-4" onSubmit={submit}>
-              <Field label="Admin email">
-                <Input
-                  autoComplete="email"
-                  autoFocus
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </Field>
-              <Field label="Password">
-                <Input
-                  autoComplete="current-password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
-              </Field>
-              {error ? (
-                <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
-                  {error}
-                </p>
-              ) : null}
-              {message ? (
-                <p className="rounded-md bg-stone-100 p-3 text-sm text-stone-700 dark:bg-neutral-950 dark:text-stone-200">
-                  {message}
-                </p>
-              ) : null}
-              <Button disabled={submitting} type="submit">
-                {submitting ? "Signing in..." : "Login to dashboard"}
-              </Button>
-            </form>
-          )}
-
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
-            <Link className="text-stone-600 hover:underline dark:text-stone-300" href="/login">
-              Customer login
-            </Link>
-            <ButtonLink href="/admin" size="sm" variant="secondary">
-              Dashboard
-            </ButtonLink>
-          </div>
+            ) : null}
+            <Button disabled={submitting} type="submit">
+              {submitting ? "Signing in..." : "Login to dashboard"}
+            </Button>
+          </form>
         </div>
       </div>
     </main>

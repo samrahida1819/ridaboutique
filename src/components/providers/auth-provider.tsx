@@ -45,7 +45,7 @@ type AuthContextValue = {
   resetPassword: (email: string) => Promise<{ error?: string; message?: string }>;
   updateProfile: (profile: { fullName?: string; phone?: string; address?: string }) => Promise<{ error?: string }>;
   refreshProfile: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (redirectTo?: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -77,7 +77,7 @@ function profileFromUser(user: User, role: ProfileRole = "customer"): AuthUser {
 }
 
 const ADMIN_ON_CUSTOMER_LOGIN_ERROR =
-  "This is an admin account. Please use the Admin login at /admin/login.";
+  "This is an admin account. Please use the Admin login at /dashboard/login.";
 
 // Returns the role stored in the profiles table for a given user id.
 // Used to keep customer and admin logins separate.
@@ -440,13 +440,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshProfileInternal, user]
   );
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (redirectTo = "/") => {
     window.localStorage.removeItem(TESTING_USER_KEY);
     if (hasSupabaseConfig()) {
       await withAuthTimeout(getSupabaseBrowserClient().auth.signOut(), "Sign out").catch(() => null);
     }
     setUser(null);
-    router.push("/");
+    router.push(redirectTo);
   }, [router]);
 
   const value = useMemo(

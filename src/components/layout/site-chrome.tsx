@@ -9,7 +9,7 @@ import { PageShell } from "@/components/motion/page-shell";
 
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith("/admin");
+  const isAdmin = pathname?.startsWith("/dashboard");
 
   if (isAdmin) {
     return <>{children}</>;

@@ -32,7 +32,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     }
 
     if (user?.role === "admin") {
-      router.replace("/admin");
+      router.replace("/dashboard");
       return;
     }
 
@@ -194,7 +194,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           {mode !== "login" ? <Link className="hover:underline" href="/login">Already have an account? Login</Link> : null}
           {mode !== "signup" ? <Link className="hover:underline" href="/signup">Create a new account</Link> : null}
           {mode !== "reset" ? <Link className="hover:underline" href="/reset-password">Forgot password?</Link> : null}
-          {mode === "login" ? <Link className="hover:underline" href="/admin/login">Admin login</Link> : null}
+          {mode === "login" ? <Link className="hover:underline" href="/dashboard/login">Admin login</Link> : null}
         </div>
       </div>
     </section>

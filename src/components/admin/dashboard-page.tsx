@@ -79,32 +79,32 @@ export function AdminDashboardHome() {
   }, [load]);
 
   const cards: Array<{ label: string; value: string; href: string }> = [
-    { label: "Total Orders", value: metrics.totalOrders.toString(), href: "/admin/orders" },
-    { label: "Pending Orders", value: metrics.pendingOrders.toString(), href: "/admin/orders" },
-    { label: "Total Products", value: metrics.totalProducts.toString(), href: "/admin/products" },
-    { label: "Total Customers", value: metrics.totalCustomers.toString(), href: "/admin/customers" },
-    { label: "Total Revenue", value: formatCurrency(metrics.totalRevenue), href: "/admin/orders" }
+    { label: "Total Orders", value: metrics.totalOrders.toString(), href: "/dashboard/orders" },
+    { label: "Pending Orders", value: metrics.pendingOrders.toString(), href: "/dashboard/orders" },
+    { label: "Total Products", value: metrics.totalProducts.toString(), href: "/dashboard/products" },
+    { label: "Total Customers", value: metrics.totalCustomers.toString(), href: "/dashboard/customers" },
+    { label: "Total Revenue", value: formatCurrency(metrics.totalRevenue), href: "/dashboard/orders" }
   ];
 
   const attention = [
     {
       label: "New custom order requests",
       count: metrics.pendingCustomOrders,
-      href: "/admin/custom-orders",
+      href: "/dashboard/custom-orders",
       icon: Sparkles,
       cta: "Review requests"
     },
     {
       label: "Reviews waiting for approval",
       count: metrics.pendingReviews,
-      href: "/admin/reviews",
+      href: "/dashboard/reviews",
       icon: Star,
       cta: "Moderate reviews"
     },
     {
       label: "Orders to process",
       count: metrics.pendingOrders,
-      href: "/admin/orders",
+      href: "/dashboard/orders",
       icon: PackageSearch,
       cta: "Open orders"
     }
@@ -128,9 +128,9 @@ export function AdminDashboardHome() {
       {error ? <AdminNotice message={error} /> : null}
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <ButtonLink href="/admin/products/new" size="sm"><Plus className="size-4" />Add product</ButtonLink>
-        <ButtonLink href="/admin/banners" size="sm" variant="secondary"><ImageIcon className="size-4" />Banners</ButtonLink>
-        <ButtonLink href="/admin/orders" size="sm" variant="secondary"><PackageSearch className="size-4" />Orders</ButtonLink>
+        <ButtonLink href="/dashboard/products/new" size="sm"><Plus className="size-4" />Add product</ButtonLink>
+        <ButtonLink href="/dashboard/banners" size="sm" variant="secondary"><ImageIcon className="size-4" />Banners</ButtonLink>
+        <ButtonLink href="/dashboard/orders" size="sm" variant="secondary"><PackageSearch className="size-4" />Orders</ButtonLink>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -185,7 +185,7 @@ export function AdminDashboardHome() {
         <section className="rounded-lg border border-stone-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center justify-between gap-3 border-b border-stone-200 p-4 dark:border-neutral-800">
             <h2 className="font-semibold">Recent Orders</h2>
-            <ButtonLink href="/admin/orders" size="sm" variant="secondary">View all</ButtonLink>
+            <ButtonLink href="/dashboard/orders" size="sm" variant="secondary">View all</ButtonLink>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -221,7 +221,7 @@ export function AdminDashboardHome() {
               <Sparkles className="size-4" />
               <h2 className="font-semibold">Recent Custom Orders</h2>
             </div>
-            <ButtonLink href="/admin/custom-orders" size="sm" variant="secondary">View all</ButtonLink>
+            <ButtonLink href="/dashboard/custom-orders" size="sm" variant="secondary">View all</ButtonLink>
           </div>
           <div className="divide-y divide-stone-200 dark:divide-neutral-800">
             {recentCustomOrders.length ? recentCustomOrders.map((order) => (
@@ -246,7 +246,7 @@ export function AdminDashboardHome() {
               <PackageSearch className="size-4" />
               <h2 className="font-semibold">Low Stock</h2>
             </div>
-            <ButtonLink href="/admin/products" size="sm" variant="secondary">Products</ButtonLink>
+            <ButtonLink href="/dashboard/products" size="sm" variant="secondary">Products</ButtonLink>
           </div>
           <div className="divide-y divide-stone-200 dark:divide-neutral-800">
             {lowStockProducts.length ? lowStockProducts.map((product) => (
@@ -270,7 +270,7 @@ export function AdminDashboardHome() {
               <UserRound className="size-4" />
               <h2 className="font-semibold">Recent Customers</h2>
             </div>
-            <ButtonLink href="/admin/customers" size="sm" variant="secondary">Customers</ButtonLink>
+            <ButtonLink href="/dashboard/customers" size="sm" variant="secondary">Customers</ButtonLink>
           </div>
           <div className="divide-y divide-stone-200 dark:divide-neutral-800">
             {recentCustomers.length ? recentCustomers.map((customer) => (

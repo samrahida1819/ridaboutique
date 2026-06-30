@@ -384,7 +384,7 @@ export function AccountClient() {
                 Testing
               </span>
             ) : null}
-            <Button className="text-brand-ivory ring-1 ring-brand-gold/30 hover:text-brand-gold" onClick={signOut} variant="ghost">
+            <Button className="text-brand-ivory ring-1 ring-brand-gold/30 hover:text-brand-gold" onClick={() => void signOut()} variant="ghost">
               <LogOut className="size-4" />
               Sign out
             </Button>

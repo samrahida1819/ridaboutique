@@ -93,7 +93,7 @@ export function AdminProductsPage() {
   return (
     <>
       <PageHeader
-        action={<ButtonLink href="/admin/products/new"><Plus className="size-4" />Add Product</ButtonLink>}
+        action={<ButtonLink href="/dashboard/products/new"><Plus className="size-4" />Add Product</ButtonLink>}
         description="Add, edit, delete, upload images, and manage product status."
         title="Products"
       />
@@ -149,7 +149,7 @@ export function AdminProductsPage() {
                 </td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
-                    <ButtonLink href={`/admin/products/${product.id}`} size="sm" variant="outline"><Edit className="size-3" />Edit</ButtonLink>
+                    <ButtonLink href={`/dashboard/products/${product.id}`} size="sm" variant="outline"><Edit className="size-3" />Edit</ButtonLink>
                     <ButtonLink href={`/products/${product.slug}`} rel="noreferrer" size="sm" target="_blank" variant="outline"><ExternalLink className="size-3" />View</ButtonLink>
                     <Button
                       disabled={updatingId === product.id}

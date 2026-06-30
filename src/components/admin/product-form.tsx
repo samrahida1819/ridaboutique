@@ -138,7 +138,7 @@ export function AdminProductForm({ productId }: { productId?: string }) {
     }
 
     setSaving(false);
-    router.push("/admin/products");
+    router.push("/dashboard/products");
   }
 
   return (
