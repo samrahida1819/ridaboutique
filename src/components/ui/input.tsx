@@ -1,4 +1,8 @@
+"use client";
+
 import type { InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
@@ -10,6 +14,31 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
       )}
       {...props}
     />
+  );
+}
+
+export function PasswordInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        className={cn(
+          "h-12 w-full rounded-full border border-brand-green/15 bg-white py-0 pl-5 pr-12 text-sm text-brand-charcoal shadow-sm transition placeholder:text-brand-charcoal/45 focus:border-brand-gold focus:ring-4 focus:ring-brand-gold/15 dark:border-neutral-700 dark:bg-neutral-950 dark:text-stone-100 dark:placeholder:text-stone-500",
+          className
+        )}
+        type={visible ? "text" : "password"}
+        {...props}
+      />
+      <button
+        aria-label={visible ? "Hide password" : "Show password"}
+        className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full text-brand-green/70 transition hover:bg-brand-cream hover:text-brand-green"
+        onClick={() => setVisible((current) => !current)}
+        type="button"
+      >
+        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
   );
 }
 

@@ -11,7 +11,7 @@ import {
   selectClassName
 } from "@/components/admin/shared";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/input";
+import { Field, Input, PasswordInput, Textarea } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api-client";
 import { formatDate } from "@/lib/utils";
 import type { ProfileRole } from "@/types/commerce";
@@ -128,11 +128,10 @@ export function AdminCustomersPage() {
             </select>
           </Field>
           <Field label="New password">
-            <Input
+            <PasswordInput
               autoComplete="new-password"
               minLength={6}
               placeholder="Leave blank to keep existing password"
-              type="password"
               value={draft.password}
               onChange={(event) => updateDraft("password", event.target.value)}
             />

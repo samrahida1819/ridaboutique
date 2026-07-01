@@ -7,7 +7,7 @@ import { LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
+import { Field, Input, PasswordInput } from "@/components/ui/input";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 type AdminLoginResponse = {
@@ -109,9 +109,8 @@ export function AdminLoginForm({ nextPath = "/dashboard" }: { nextPath?: string 
               />
             </Field>
             <Field label="Password">
-              <Input
+              <PasswordInput
                 autoComplete="current-password"
-                type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
