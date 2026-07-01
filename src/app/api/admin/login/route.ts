@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSupabaseServerAuthClient, hasSupabaseServerConfig } from "@/lib/supabase-server";
+import { createSupabaseServerAuthClient, getSupabaseServerConfigError, hasSupabaseServerConfig } from "@/lib/supabase-server";
 import { jsonError } from "@/lib/admin-api-server";
 
 export async function POST(request: NextRequest) {
   if (!hasSupabaseServerConfig()) {
-    return jsonError("Supabase backend env is missing.", 503);
+    return jsonError(getSupabaseServerConfigError() || "Supabase backend env is missing.", 503);
   }
 
   const body = (await request.json().catch(() => null)) as { email?: string; password?: string } | null;

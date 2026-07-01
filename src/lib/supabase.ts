@@ -1,20 +1,20 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabasePublishableKey, getSupabaseUrl, hasSupabaseEnvConfig } from "@/lib/supabase-env";
 
 let browserClient: SupabaseClient | null = null;
 let publicClient: SupabaseClient | null = null;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
 export function hasSupabaseConfig() {
-  return Boolean(supabaseUrl && supabasePublishableKey);
+  return hasSupabaseEnvConfig();
 }
 
 export function getSupabaseBrowserClient() {
   if (browserClient) {
     return browserClient;
   }
+
+  const supabaseUrl = getSupabaseUrl();
+  const supabasePublishableKey = getSupabasePublishableKey();
 
   if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
@@ -34,6 +34,9 @@ export function getSupabasePublicClient() {
   if (publicClient) {
     return publicClient;
   }
+
+  const supabaseUrl = getSupabaseUrl();
+  const supabasePublishableKey = getSupabasePublishableKey();
 
   if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");

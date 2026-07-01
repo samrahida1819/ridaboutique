@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { getSupabaseServerClient, hasSupabaseServerConfig } from "@/lib/supabase-server";
+import { getSupabaseServerClient, getSupabaseServerConfigError, hasSupabaseServerConfig } from "@/lib/supabase-server";
 import type { ProfileRole } from "@/types/commerce";
 
 export type AdminApiContext = {
@@ -30,7 +30,7 @@ function getBearerToken(request: NextRequest) {
 
 export async function requireAdmin(request: NextRequest): Promise<AdminApiContext | NextResponse> {
   if (!hasSupabaseServerConfig()) {
-    return jsonError("Supabase backend env is missing.", 503);
+    return jsonError(getSupabaseServerConfigError() || "Supabase backend env is missing.", 503);
   }
 
   const accessToken = getBearerToken(request);
