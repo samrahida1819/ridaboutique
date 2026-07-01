@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (authError || !authData.session || !authData.user) {
     const loginMessage = authError?.message || "Invalid admin login";
     return jsonError(
-      `${loginMessage}. If this is the first setup, run supabase/admin_setup.sql in Supabase SQL Editor.`,
+      `${loginMessage}. If this is the first setup, run supabase/setup.sql in Supabase SQL Editor.`,
       401
     );
   }
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
   if (profileError) {
     if (profileError.message.toLowerCase().includes("profiles") && profileError.message.toLowerCase().includes("does not exist")) {
-      return jsonError("Database setup missing. Run supabase/schema.sql first, then promote your admin user.", 500);
+      return jsonError("Database setup missing. Run supabase/setup.sql in Supabase SQL Editor.", 500);
     }
 
     return jsonError(profileError.message, 403);
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (promoteError) {
       return jsonError(
-        `Could not set admin role automatically (${promoteError.message}). Open Supabase → SQL Editor → run supabase/fix_admin_role.sql, then login again.`,
+        `Could not set admin role automatically (${promoteError.message}). Open Supabase → SQL Editor → run supabase/setup.sql, then login again.`,
         500
       );
     }
@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
   if (!profile || profile.role !== "admin") {
     await supabase.auth.signOut().catch(() => null);
     const setupHint = hasSupabaseServiceRoleConfig()
-      ? "Open Supabase → SQL Editor → New query → paste and run supabase/fix_admin_role.sql from the repo, then login again."
-      : "Add SUPABASE_SERVICE_ROLE_KEY in Vercel env and redeploy, OR run supabase/fix_admin_role.sql in Supabase SQL Editor.";
+      ? "Open Supabase → SQL Editor → New query → paste and run supabase/setup.sql from the repo, then login again."
+      : "Add SUPABASE_SERVICE_ROLE_KEY in Vercel env and redeploy, OR run supabase/setup.sql in Supabase SQL Editor.";
     return jsonError(`This account is not marked as admin. ${setupHint}`, 403);
   }
 

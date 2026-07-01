@@ -54,7 +54,7 @@ export async function requireAdmin(request: NextRequest): Promise<AdminApiContex
 
   if (profileError) {
     if (profileError.message.toLowerCase().includes("profiles") && profileError.message.toLowerCase().includes("does not exist")) {
-      return jsonError("Database setup missing. Run supabase/schema.sql first, then promote your admin user.", 500);
+      return jsonError("Database setup missing. Run supabase/setup.sql in Supabase SQL Editor.", 500);
     }
 
     return jsonError(profileError.message, 403);

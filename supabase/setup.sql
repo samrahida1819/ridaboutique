@@ -1,3 +1,13 @@
+﻿-- =============================================================================
+-- RIDA BOUTIQUE - SUPABASE SETUP (single file, run once)
+-- =============================================================================
+-- Supabase Dashboard -> SQL Editor -> New query -> paste ALL -> Run
+-- Last result must show: role = admin
+-- =============================================================================
+
+-- =============================================================================
+-- PART 1: DATABASE SCHEMA
+-- =============================================================================
 create extension if not exists pgcrypto;
 
 create or replace function public.set_updated_at()
@@ -552,6 +562,78 @@ on public.reviews for all
 using (public.is_admin())
 with check (public.is_admin());
 
--- To create/update the default admin Auth user, run supabase/admin_setup.sql.
--- To promote an existing Auth user manually:
--- update public.profiles set role = 'admin' where email = 'admin@ridaboutique.in';
+-- =============================================================================
+-- PART 2: ADMIN ACCOUNT
+-- =============================================================================
+-- Change these before going live:
+--   Email:    admin@ridaboutique.in
+--   Password: RidaAdmin@2026
+-- Login URL: /dashboard/login
+-- =============================================================================
+
+do $$
+declare
+  admin_email text := 'admin@ridaboutique.in';
+  admin_password text := 'RidaAdmin@2026';
+  admin_user_id uuid;
+begin
+  select id into admin_user_id from auth.users where lower(email) = lower(admin_email) limit 1;
+
+  if admin_user_id is null then
+    admin_user_id := gen_random_uuid();
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
+    ) values (
+      '00000000-0000-0000-0000-000000000000', admin_user_id, 'authenticated', 'authenticated',
+      admin_email, crypt(admin_password, gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('full_name', 'Rida Admin'), now(), now(), '', '', '', ''
+    );
+  else
+    update auth.users set
+      encrypted_password = crypt(admin_password, gen_salt('bf')),
+      email_confirmed_at = coalesce(email_confirmed_at, now()),
+      raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+      raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('full_name', coalesce(raw_user_meta_data->>'full_name', 'Rida Admin')),
+      updated_at = now()
+    where id = admin_user_id;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'auth' and table_name = 'identities' and column_name = 'provider_id'
+  ) then
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (
+      gen_random_uuid(), admin_user_id, admin_user_id::text,
+      jsonb_build_object('sub', admin_user_id::text, 'email', admin_email, 'email_verified', true, 'phone_verified', false),
+      'email', now(), now(), now()
+    )
+    on conflict (provider, provider_id) do update set identity_data = excluded.identity_data, updated_at = now();
+  else
+    insert into auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (
+      admin_user_id::text, admin_user_id,
+      jsonb_build_object('sub', admin_user_id::text, 'email', admin_email, 'email_verified', true, 'phone_verified', false),
+      'email', now(), now(), now()
+    )
+    on conflict (provider, id) do update set identity_data = excluded.identity_data, updated_at = now();
+  end if;
+
+  insert into public.profiles (id, email, full_name, role)
+  values (admin_user_id, admin_email, 'Rida Admin', 'admin')
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = coalesce(public.profiles.full_name, excluded.full_name),
+    role = 'admin',
+    updated_at = now();
+end $$;
+
+-- =============================================================================
+-- PART 3: VERIFY ADMIN
+-- =============================================================================
+select id, email, role
+from public.profiles
+where lower(email) = lower('admin@ridaboutique.in');

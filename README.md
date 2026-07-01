@@ -28,15 +28,11 @@ cp .env.example .env.local
 
 Fill in your Supabase and Razorpay keys in `.env.local`. This file is **not** pushed to GitHub.
 
-3. Apply the database schema in **Supabase → SQL Editor**:
+3. Apply the database in **Supabase → SQL Editor** (run once):
 
-Run the full file: `supabase/schema.sql`
+Run the full file: `supabase/setup.sql`
 
-4. Create the default admin user in **Supabase → SQL Editor**:
-
-Run the full file: `supabase/admin_setup.sql`
-
-Default admin login:
+Default admin login (defined in PART 2 of that file):
 
 ```text
 URL:      /dashboard/login
@@ -46,7 +42,7 @@ Password: RidaAdmin@2026
 
 Change this password before going live.
 
-5. Run locally:
+4. Run locally:
 
 ```bash
 npm run dev
@@ -109,7 +105,7 @@ Git push alone is **not** enough for the live site. After importing from GitHub:
 
 1. **Environment variables** — add all keys from `.env.example` in Vercel → Project Settings → Environment Variables (same values as your `.env.local`).
 
-2. **Supabase SQL** — run `supabase/schema.sql` and `supabase/admin_setup.sql` in your Supabase project (once per database).
+2. **Supabase SQL** — run `supabase/setup.sql` in your Supabase project (once per database).
 
 3. **Redeploy** — trigger a new deploy after env vars are saved.
 

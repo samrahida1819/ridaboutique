@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       const message = error.message.toLowerCase().includes("bucket")
-        ? "Image storage is not ready. Run supabase/schema.sql so the product-images bucket exists."
+        ? "Image storage is not ready. Run supabase/setup.sql so the product-images bucket exists."
         : error.message;
       return NextResponse.json({ error: message }, { status: 400 });
     }
