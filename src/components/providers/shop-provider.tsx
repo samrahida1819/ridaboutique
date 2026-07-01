@@ -10,6 +10,7 @@ import {
   type ReactNode
 } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useToast } from "@/components/providers/toast-provider";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { CartItem, Order, Product, SavedAddress } from "@/types/commerce";
 
@@ -73,9 +74,36 @@ const CART_KEY = "rida-boutique-cart";
 const ADDRESSES_KEY = "rida-boutique-addresses";
 const ORDERS_KEY = "rida-boutique-orders";
 const WISHLIST_KEY = "rida-boutique-wishlist";
+const PENDING_SHOP_ACTION_KEY = "rida-pending-shop-action";
+
+type PendingShopAction =
+  | { type: "cart"; product: Product; quantity: number; variant?: string }
+  | { type: "wishlist"; product: Product };
 
 function userStorageKey(base: string, userId: string) {
   return `${base}:${userId}`;
+}
+
+function mergeCartItem(cart: CartItem[], product: Product, quantity: number, variant?: string) {
+  const existing = cart.find((item) => item.product.id === product.id && item.variant === variant);
+
+  if (existing) {
+    return cart.map((item) =>
+      item.product.id === product.id && item.variant === variant
+        ? { ...item, quantity: item.quantity + quantity }
+        : item
+    );
+  }
+
+  return [...cart, { product, quantity, variant }];
+}
+
+function addWishlistItem(wishlist: Product[], product: Product) {
+  if (wishlist.some((item) => item.id === product.id)) {
+    return wishlist;
+  }
+
+  return [...wishlist, product];
 }
 
 function localAddressId() {
@@ -84,6 +112,7 @@ function localAddressId() {
 
 export function ShopProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, requestLogin, user } = useAuth();
+  const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
@@ -102,15 +131,37 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       const savedOrders = window.localStorage.getItem(userStorageKey(ORDERS_KEY, user.id));
       const savedWishlist = window.localStorage.getItem(userStorageKey(WISHLIST_KEY, user.id));
 
-      setCart(savedCart ? (JSON.parse(savedCart) as CartItem[]) : []);
+      let nextCart = savedCart ? (JSON.parse(savedCart) as CartItem[]) : [];
+      let nextWishlist = savedWishlist ? (JSON.parse(savedWishlist) as Product[]) : [];
+      const pendingRaw = window.sessionStorage.getItem(PENDING_SHOP_ACTION_KEY);
+
+      if (pendingRaw) {
+        window.sessionStorage.removeItem(PENDING_SHOP_ACTION_KEY);
+
+        try {
+          const pending = JSON.parse(pendingRaw) as PendingShopAction;
+
+          if (pending.type === "cart") {
+            nextCart = mergeCartItem(nextCart, pending.product, pending.quantity, pending.variant);
+            toast({ title: "Added to cart", description: pending.product.name });
+          } else {
+            nextWishlist = addWishlistItem(nextWishlist, pending.product);
+            toast({ title: "Saved to wishlist", description: pending.product.name });
+          }
+        } catch {
+          // Ignore invalid pending actions.
+        }
+      }
+
+      setCart(nextCart);
       setOrders(savedOrders ? (JSON.parse(savedOrders) as Order[]) : []);
-      setWishlist(savedWishlist ? (JSON.parse(savedWishlist) as Product[]) : []);
+      setWishlist(nextWishlist);
     } catch {
       setCart([]);
       setOrders([]);
       setWishlist([]);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, toast, user]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -185,25 +236,18 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, savedAddresses, user]);
 
   const addToCart = useCallback((product: Product, quantity = 1, variant?: string) => {
-    if (!requestLogin("Sign in with email to add items to your cart.")) {
+    if (!isAuthenticated) {
+      window.sessionStorage.setItem(
+        PENDING_SHOP_ACTION_KEY,
+        JSON.stringify({ type: "cart", product, quantity, variant })
+      );
+      requestLogin("Sign in with email to add items to your cart.");
       return false;
     }
 
-    setCart((current) => {
-      const existing = current.find((item) => item.product.id === product.id && item.variant === variant);
-
-      if (existing) {
-        return current.map((item) =>
-          item.product.id === product.id && item.variant === variant
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      }
-
-      return [...current, { product, quantity, variant }];
-    });
+    setCart((current) => mergeCartItem(current, product, quantity, variant));
     return true;
-  }, [requestLogin]);
+  }, [isAuthenticated, requestLogin]);
 
   const removeFromCart = useCallback((productId: string, variant?: string) => {
     setCart((current) =>
@@ -238,7 +282,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, user]);
 
   const toggleWishlist = useCallback((product: Product) => {
-    if (!requestLogin("Sign in with email to save products to your wishlist.")) {
+    if (!isAuthenticated) {
+      window.sessionStorage.setItem(PENDING_SHOP_ACTION_KEY, JSON.stringify({ type: "wishlist", product }));
+      requestLogin("Sign in with email to save products to your wishlist.");
       return false;
     }
 
@@ -250,21 +296,27 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       return [...current, product];
     });
     return true;
-  }, [requestLogin]);
+  }, [isAuthenticated, requestLogin]);
 
   const moveWishlistToCart = useCallback(
     (product: Product) => {
-      if (!requestLogin("Sign in with email to move wishlist items to cart.")) {
+      if (!isAuthenticated) {
+        window.sessionStorage.setItem(
+          PENDING_SHOP_ACTION_KEY,
+          JSON.stringify({ type: "cart", product, quantity: 1 })
+        );
+        requestLogin("Sign in with email to move wishlist items to cart.");
         return false;
       }
 
       if (!addToCart(product)) {
         return false;
       }
+
       setWishlist((current) => current.filter((item) => item.id !== product.id));
       return true;
     },
-    [addToCart, requestLogin]
+    [addToCart, isAuthenticated, requestLogin]
   );
 
   const isWishlisted = useCallback(

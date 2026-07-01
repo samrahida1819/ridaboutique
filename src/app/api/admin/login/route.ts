@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerAuthClient, getSupabaseServerConfigError, getSupabaseServiceRoleClient, hasSupabaseServerConfig, hasSupabaseServiceRoleConfig } from "@/lib/supabase-server";
 import { jsonError } from "@/lib/admin-api-server";
 
+const DEFAULT_ADMIN_EMAIL = "admin@ridaboutique.in";
+
 export async function POST(request: NextRequest) {
   if (!hasSupabaseServerConfig()) {
     return jsonError(getSupabaseServerConfigError() || "Supabase backend env is missing.", 503);
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: profile, error: profileError } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("id, email, full_name, phone, address, role")
     .eq("id", authData.user.id)
@@ -51,6 +53,28 @@ export async function POST(request: NextRequest) {
     }
 
     return jsonError(profileError.message, 403);
+  }
+
+  if (
+    (!profile || profile.role !== "admin") &&
+    email.toLowerCase() === DEFAULT_ADMIN_EMAIL &&
+    hasSupabaseServiceRoleConfig()
+  ) {
+    const service = getSupabaseServiceRoleClient();
+    const { data: promoted, error: promoteError } = await service
+      .from("profiles")
+      .upsert({
+        id: authData.user.id,
+        email,
+        full_name: profile?.full_name || "Rida Admin",
+        role: "admin"
+      })
+      .select("id, email, full_name, phone, address, role")
+      .single();
+
+    if (!promoteError && promoted) {
+      profile = promoted;
+    }
   }
 
   if (!profile || profile.role !== "admin") {

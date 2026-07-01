@@ -21,7 +21,7 @@ export function WishlistClient() {
   if (!isAuthenticated) {
     return (
       <div className="app-container pb-12 pt-28 sm:pt-32 md:pt-40">
-        <LoginRequired description="Sign in to save and revisit wishlist products." title="Wishlist" />
+        <LoginRequired description="Sign in with email and password to save products to your wishlist." title="Login to use wishlist" />
       </div>
     );
   }

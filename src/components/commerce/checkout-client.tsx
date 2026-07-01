@@ -179,11 +179,12 @@ export function CheckoutClient() {
 
     const orderNumber = `RB-${Date.now().toString().slice(-7)}`;
     const deliveryAddress = selectedAddress ? savedAddressLine(selectedAddress) : manualAddressLine(form);
+    const orderStatus = paymentStatus === "paid" ? "Packed" : "Pending";
     const localOrder: Order = {
       id: orderNumber,
       date: new Date().toISOString(),
       total,
-      status: "Pending",
+      status: orderStatus,
       customerName: form.fullName,
       email: form.email,
       phone: form.phone,
@@ -216,7 +217,7 @@ export function CheckoutClient() {
           pincode: form.pincode,
           payment_method: method,
           payment_status: paymentStatus,
-          status: "Pending",
+          status: orderStatus,
           subtotal,
           delivery_charges: deliveryCharges,
           total

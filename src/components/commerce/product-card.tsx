@@ -58,8 +58,10 @@ export function ProductCard({ product }: { product: Product }) {
         ) : null}
         <Button
           aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute right-2 top-2 size-9 bg-white/90 text-brand-green shadow-sm backdrop-blur hover:bg-brand-green hover:text-brand-ivory sm:right-3 sm:top-3 sm:size-10"
-          onClick={() => {
+          className="absolute right-2 top-2 z-10 size-9 bg-white/90 text-brand-green shadow-sm backdrop-blur hover:bg-brand-green hover:text-brand-ivory sm:right-3 sm:top-3 sm:size-10"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             if (toggleWishlist(product)) {
               toast({
                 title: wishlisted ? "Removed from wishlist" : "Saved to wishlist",
@@ -100,7 +102,9 @@ export function ProductCard({ product }: { product: Product }) {
           aria-label={soldOut ? `${product.name} is sold out` : `Add ${product.name} to cart`}
           className="mt-3 h-9 w-full rounded-full px-3 text-[11px] sm:h-10 sm:text-xs"
           disabled={soldOut}
-          onClick={() => {
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             if (addToCart(product)) {
               toast({
                 title: "Added to cart",

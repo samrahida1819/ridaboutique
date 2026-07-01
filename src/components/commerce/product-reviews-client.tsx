@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { CheckCircle2, ShieldCheck, Star } from "lucide-react";
+import { CheckCircle2, Star } from "lucide-react";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
@@ -167,10 +167,6 @@ export function ProductReviewsClient({ product }: { product: Product }) {
               Customers can write a review here. Admin approves it before it becomes public.
             </p>
           </div>
-          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-brand-green ring-1 ring-brand-green/10">
-            <ShieldCheck className="size-4 text-brand-gold" />
-            Moderated
-          </span>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">

@@ -20,7 +20,7 @@ export function CartClient() {
   if (!isAuthenticated) {
     return (
       <div className="app-container pb-12 pt-28 sm:pt-32 md:pt-40">
-        <LoginRequired description="Sign in with email and password to view your cart and buy products." title="Your cart is private" />
+        <LoginRequired description="Sign in with email and password to view your cart. Add to cart works after login." title="Login to use cart" />
       </div>
     );
   }
