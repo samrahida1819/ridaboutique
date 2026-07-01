@@ -151,7 +151,7 @@ begin
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
     new.raw_user_meta_data->>'phone',
-    'customer'
+    case when lower(new.email) = lower('admin@ridaboutique.in') then 'admin' else 'customer' end
   )
   on conflict (id) do update set
     email = excluded.email,

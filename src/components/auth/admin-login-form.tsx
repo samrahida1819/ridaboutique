@@ -117,9 +117,16 @@ export function AdminLoginForm({ nextPath = "/dashboard" }: { nextPath?: string 
               />
             </Field>
             {error ? (
-              <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
-                {error}
-              </p>
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
+                <p>{error}</p>
+                {error.toLowerCase().includes("not marked as admin") ? (
+                  <p className="mt-3 text-xs leading-5 text-red-800/90 dark:text-red-100/90">
+                    Git push se ye fix nahi hota. Supabase Dashboard → SQL Editor → New query →
+                    `supabase/fix_admin_role.sql` ka poora SQL copy karke Run karo. Last line mein
+                    `role = admin` dikhna chahiye.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             {message ? (
               <p className="rounded-md bg-stone-100 p-3 text-sm text-stone-700 dark:bg-neutral-950 dark:text-stone-200">

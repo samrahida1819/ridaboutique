@@ -72,14 +72,24 @@ export async function POST(request: NextRequest) {
       .select("id, email, full_name, phone, address, role")
       .single();
 
-    if (!promoteError && promoted) {
+    if (promoteError) {
+      return jsonError(
+        `Could not set admin role automatically (${promoteError.message}). Open Supabase → SQL Editor → run supabase/fix_admin_role.sql, then login again.`,
+        500
+      );
+    }
+
+    if (promoted) {
       profile = promoted;
     }
   }
 
   if (!profile || profile.role !== "admin") {
     await supabase.auth.signOut().catch(() => null);
-    return jsonError("This account is not marked as admin.", 403);
+    const setupHint = hasSupabaseServiceRoleConfig()
+      ? "Open Supabase → SQL Editor → New query → paste and run supabase/fix_admin_role.sql from the repo, then login again."
+      : "Add SUPABASE_SERVICE_ROLE_KEY in Vercel env and redeploy, OR run supabase/fix_admin_role.sql in Supabase SQL Editor.";
+    return jsonError(`This account is not marked as admin. ${setupHint}`, 403);
   }
 
   return NextResponse.json({
