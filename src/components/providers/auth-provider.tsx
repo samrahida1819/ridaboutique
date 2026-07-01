@@ -33,16 +33,20 @@ type SignUpInput = {
   phone?: string;
 };
 
+type AuthResult = { error?: string; message?: string; needsEmailConfirmation?: boolean };
+
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   authReady: boolean;
   requestLogin: (reason?: string) => boolean;
   testingLogin: (role?: ProfileRole) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
   sendEmailOtp: (email: string) => Promise<{ error?: string; message?: string }>;
   verifyEmailOtp: (email: string, token: string) => Promise<{ error?: string; message?: string }>;
-  signUp: (input: SignUpInput) => Promise<{ error?: string; message?: string }>;
+  signUp: (input: SignUpInput) => Promise<AuthResult>;
+  resendEmailConfirmation: (email: string) => Promise<{ error?: string; message?: string }>;
+  signInWithGoogle: (nextPath?: string) => Promise<{ error?: string }>;
   resetPassword: (email: string) => Promise<{ error?: string; message?: string }>;
   updateProfile: (profile: { fullName?: string; phone?: string; address?: string }) => Promise<{ error?: string }>;
   refreshProfile: () => Promise<void>;
@@ -79,6 +83,19 @@ function profileFromUser(user: User, role: ProfileRole = "customer"): AuthUser {
 
 const ADMIN_ON_CUSTOMER_LOGIN_ERROR =
   "This is an admin account. Please use the Admin login at /dashboard/login.";
+
+function authCallbackUrl(nextPath = "/account") {
+  const safeNext = nextPath.startsWith("/") ? nextPath : "/account";
+  if (typeof window === "undefined") {
+    return `/auth/callback?next=${encodeURIComponent(safeNext)}`;
+  }
+
+  return `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+}
+
+function isEmailNotConfirmedError(message: string) {
+  return /email not confirmed/i.test(message);
+}
 
 // Returns the role stored in the profiles table for a given user id.
 // Used to keep customer and admin logins separate.
@@ -237,6 +254,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
+          if (isEmailNotConfirmedError(error.message)) {
+            return {
+              error: "Please verify your email first. We can send the link again.",
+              needsEmailConfirmation: true
+            };
+          }
+
           return { error: error.message };
         }
 
@@ -353,10 +377,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       window.localStorage.removeItem(TESTING_USER_KEY);
       const supabase = getSupabaseBrowserClient();
+      const emailRedirectTo = authCallbackUrl("/account");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo,
           data: {
             full_name: fullName,
             phone: phone || null
@@ -379,14 +405,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }),
           "Profile signup"
         ).catch(() => null);
-        await loadProfile(data.user);
       }
 
-      return { message: "Account created. Check your email if confirmation is enabled in Supabase." };
+      if (data.session && data.user) {
+        await loadProfile(data.user);
+        return { message: "Account created. Welcome to Rida Boutique." };
+      }
+
+      if (data.user) {
+        return {
+          needsEmailConfirmation: true,
+          message: `Verification link sent to ${email}. Open your inbox and tap Confirm email.`
+        };
+      }
+
+      return { message: "Account created." };
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Unable to create account." };
     }
   }, [loadProfile]);
+
+  const resendEmailConfirmation = useCallback(async (email: string) => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: authCallbackUrl("/account")
+        }
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return { message: `Verification email sent again to ${email}.` };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unable to resend verification email." };
+    }
+  }, []);
+
+  const signInWithGoogle = useCallback(async (nextPath = "/account") => {
+    try {
+      window.localStorage.removeItem(TESTING_USER_KEY);
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: authCallbackUrl(nextPath),
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent"
+          }
+        }
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return {};
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unable to start Google sign in." };
+    }
+  }, []);
 
   const resetPassword = useCallback(async (email: string) => {
     try {
@@ -485,6 +568,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendEmailOtp,
       verifyEmailOtp,
       signUp,
+      resendEmailConfirmation,
+      signInWithGoogle,
       resetPassword,
       updateProfile,
       refreshProfile: refreshProfileInternal,
@@ -494,9 +579,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authReady,
       refreshProfileInternal,
       requestLogin,
+      resendEmailConfirmation,
       resetPassword,
       sendEmailOtp,
       signIn,
+      signInWithGoogle,
       signOut,
       signUp,
       testingLogin,
