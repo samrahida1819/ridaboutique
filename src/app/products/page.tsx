@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title: "Products"
 };
 
-export default function ProductsPage() {
-  return <ProductListing />;
+export default async function ProductsPage({
+  searchParams
+}: {
+  searchParams: Promise<{ query?: string }>;
+}) {
+  const { query } = await searchParams;
+
+  return <ProductListing initialQuery={query} />;
 }

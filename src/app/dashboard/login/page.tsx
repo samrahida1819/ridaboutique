@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title: "Admin Login"
 };
 
-export default function AdminLoginPage() {
-  return <AdminLoginForm />;
+export default async function AdminLoginPage({
+  searchParams
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+
+  return <AdminLoginForm nextPath={next || "/dashboard"} />;
 }

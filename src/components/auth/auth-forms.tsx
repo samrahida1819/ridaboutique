@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -10,11 +10,10 @@ import { useAuth } from "@/components/providers/auth-provider";
 type AuthMode = "login" | "signup" | "reset";
 type LoginMethod = "otp" | "password";
 
-export function AuthForm({ mode }: { mode: AuthMode }) {
+export function AuthForm({ mode, nextPath = "/account" }: { mode: AuthMode; nextPath?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { isAuthenticated, sendEmailOtp, signIn, signUp, resetPassword, user, verifyEmailOtp } = useAuth();
-  const next = searchParams.get("next") || "/account";
+  const next = nextPath;
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");

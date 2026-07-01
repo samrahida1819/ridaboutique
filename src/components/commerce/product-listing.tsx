@@ -1,12 +1,10 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { ShopExplorer } from "@/components/commerce/shop-explorer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCatalog } from "@/hooks/use-store-data";
 
-export function ProductListing() {
-  const searchParams = useSearchParams();
+export function ProductListing({ initialQuery }: { initialQuery?: string }) {
   const { error, loading, products } = useCatalog(true);
   const showLoadingState = loading && products.length === 0;
 
@@ -41,7 +39,7 @@ export function ProductListing() {
             ))}
           </div>
         ) : (
-          <ShopExplorer initialQuery={searchParams.get("query") || undefined} products={products} />
+          <ShopExplorer initialQuery={initialQuery} products={products} />
         )}
       </section>
     </main>

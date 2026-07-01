@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/providers/theme-provider";
@@ -17,9 +17,8 @@ type AdminLoginResponse = {
   };
 };
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { authReady, refreshProfile, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,10 +26,7 @@ export function AdminLoginForm() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const nextPath = useMemo(() => {
-    const next = searchParams.get("next") || "/dashboard";
-    return next.startsWith("/dashboard") && next !== "/dashboard/login" ? next : "/dashboard";
-  }, [searchParams]);
+  const next = nextPath.startsWith("/dashboard") && nextPath !== "/dashboard/login" ? nextPath : "/dashboard";
 
   useEffect(() => {
     if (!authReady || !user) {
@@ -38,9 +34,9 @@ export function AdminLoginForm() {
     }
 
     if (user.role === "admin") {
-      router.replace(nextPath);
+      router.replace(next);
     }
-  }, [authReady, nextPath, router, user]);
+  }, [authReady, next, router, user]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +66,7 @@ export function AdminLoginForm() {
       });
       await refreshProfile();
       setMessage("Login successful. Opening dashboard...");
-      router.replace(nextPath);
+      router.replace(next);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Admin login failed.");
     } finally {
