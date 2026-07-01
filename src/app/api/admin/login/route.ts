@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSupabaseServerAuthClient, getSupabaseServerConfigError, hasSupabaseServerConfig } from "@/lib/supabase-server";
+import { createSupabaseServerAuthClient, getSupabaseServerConfigError, getSupabaseServiceRoleClient, hasSupabaseServerConfig, hasSupabaseServiceRoleConfig } from "@/lib/supabase-server";
 import { jsonError } from "@/lib/admin-api-server";
 
 export async function POST(request: NextRequest) {
@@ -16,7 +16,20 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createSupabaseServerAuthClient();
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (
+    authError &&
+    authError.message.toLowerCase().includes("email not confirmed") &&
+    hasSupabaseServiceRoleConfig()
+  ) {
+    const admin = getSupabaseServiceRoleClient();
+    const { data: profile } = await admin.from("profiles").select("id").ilike("email", email).maybeSingle();
+    if (profile?.id) {
+      await admin.auth.admin.updateUserById(profile.id, { email_confirm: true });
+      ({ data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password }));
+    }
+  }
 
   if (authError || !authData.session || !authData.user) {
     const loginMessage = authError?.message || "Invalid admin login";

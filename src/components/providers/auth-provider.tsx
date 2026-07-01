@@ -79,26 +79,8 @@ function profileFromUser(user: User, role: ProfileRole = "customer"): AuthUser {
   };
 }
 
-const ADMIN_ON_CUSTOMER_LOGIN_ERROR =
-  "This is an admin account. Please use the Admin login at /dashboard/login.";
 
 // Returns the role stored in the profiles table for a given user id.
-// Used to keep customer and admin logins separate.
-async function fetchProfileRole(
-  supabase: ReturnType<typeof getSupabaseBrowserClient>,
-  userId?: string | null
-): Promise<ProfileRole> {
-  if (!userId) {
-    return "customer";
-  }
-
-  const { data } = await withAuthTimeout(
-    supabase.from("profiles").select("role").eq("id", userId).maybeSingle(),
-    "Role check"
-  ).catch(() => ({ data: null }));
-
-  return (data as { role?: string } | null)?.role === "admin" ? "admin" : "customer";
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -235,18 +217,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       try {
         window.localStorage.removeItem(TESTING_USER_KEY);
-        const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (error) {
-          return { error: error.message };
+        const response = await withAuthTimeout(
+          fetch("/api/auth/password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "login", email, password })
+          }),
+          "Sign in"
+        );
+
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string; session?: { accessToken: string; refreshToken: string } }
+          | null;
+
+        if (!response.ok) {
+          return {
+            error:
+              payload?.error ||
+              getMissingSupabaseEnvMessage() ||
+              "Unable to sign in. Check your email and password."
+          };
         }
 
-        const role = await fetchProfileRole(supabase, data.user?.id);
-        if (role === "admin") {
-          await supabase.auth.signOut().catch(() => null);
-          setUser(null);
-          return { error: ADMIN_ON_CUSTOMER_LOGIN_ERROR };
+        if (!payload?.session) {
+          return { error: "Sign in succeeded but no session was returned." };
+        }
+
+        if (!hasSupabaseConfig()) {
+          return { error: getMissingSupabaseEnvMessage() || "Supabase is not configured." };
+        }
+
+        const supabase = getSupabaseBrowserClient();
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: payload.session.accessToken,
+          refresh_token: payload.session.refreshToken
+        });
+
+        if (sessionError) {
+          return { error: sessionError.message };
         }
 
         await refreshProfileInternal();
@@ -354,41 +363,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async ({ email, fullName, password, phone }: SignUpInput) => {
     try {
       window.localStorage.removeItem(TESTING_USER_KEY);
+
+      const response = await withAuthTimeout(
+        fetch("/api/auth/password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "signup", email, password, fullName, phone })
+        }),
+        "Sign up"
+      );
+
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; message?: string; session?: { accessToken: string; refreshToken: string } }
+        | null;
+
+      if (!response.ok) {
+        return {
+          error:
+            payload?.error ||
+            getMissingSupabaseEnvMessage() ||
+            "Unable to create account. Try again or use a different email."
+        };
+      }
+
+      if (!payload?.session) {
+        return { error: "Account created but no session was returned." };
+      }
+
+      if (!hasSupabaseConfig()) {
+        return { error: getMissingSupabaseEnvMessage() || "Supabase is not configured." };
+      }
+
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone: phone || null
-          }
-        }
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: payload.session.accessToken,
+        refresh_token: payload.session.refreshToken
       });
 
-      if (error) {
-        return { error: error.message };
+      if (sessionError) {
+        return { error: sessionError.message };
       }
 
-      if (data.user) {
-        await withAuthTimeout(
-          supabase.from("profiles").upsert({
-            id: data.user.id,
-            email,
-            full_name: fullName,
-            phone: phone || null,
-            role: "customer"
-          }),
-          "Profile signup"
-        ).catch(() => null);
-        await loadProfile(data.user);
-      }
-
+      await refreshProfileInternal();
       return { message: "Account created. Welcome to Rida Boutique." };
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Unable to create account." };
     }
-  }, [loadProfile]);
+  }, [refreshProfileInternal]);
 
   const resetPassword = useCallback(async (email: string) => {
     try {
@@ -536,7 +557,7 @@ export function AuthLoading({ title = "Checking your session" }: { title?: strin
       <div className="mx-auto size-9 animate-pulse rounded-full bg-stone-200 dark:bg-neutral-800" />
       <h2 className="mt-4 text-2xl font-semibold text-neutral-950 dark:text-stone-100">{title}</h2>
       <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-stone-600 dark:text-stone-300">
-        Please wait while we confirm your email login.
+        Please wait while we check your session.
       </p>
     </div>
   );
