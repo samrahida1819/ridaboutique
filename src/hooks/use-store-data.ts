@@ -14,6 +14,18 @@ import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { Banner, Category, ContactDetails, Product, StoreSettings, WebsiteContent, WebsiteContentKey } from "@/types/commerce";
 
 const DATA_LOAD_TIMEOUT_MS = 4000;
+const STORE_CONFIG_ERROR =
+  "Live store data is unavailable. Add Supabase environment variables on Vercel, then redeploy.";
+
+function useDemoStoreData() {
+  return !hasSupabaseConfig() && process.env.NODE_ENV !== "production";
+}
+
+function handleMissingSupabaseConfig(setError: (message: string) => void) {
+  if (process.env.NODE_ENV === "production") {
+    setError(STORE_CONFIG_ERROR);
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, label: string) {
   let timeoutId: number;
@@ -45,13 +57,14 @@ type BannerState = {
 };
 
 export function useCatalog(activeOnly = true): CatalogState {
-  const [products, setProducts] = useState<Product[]>(hasSupabaseConfig() ? [] : fallbackProducts);
-  const [categories, setCategories] = useState<Category[]>(hasSupabaseConfig() ? [] : fallbackCategories);
+  const [products, setProducts] = useState<Product[]>(useDemoStoreData() ? fallbackProducts : []);
+  const [categories, setCategories] = useState<Category[]>(useDemoStoreData() ? fallbackCategories : []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!hasSupabaseConfig()) {
+      handleMissingSupabaseConfig(setError);
       setLoading(false);
       return;
     }
@@ -117,13 +130,17 @@ export function useCatalog(activeOnly = true): CatalogState {
 }
 
 export function useBanners(activeOnly = true): BannerState {
-  const [banners, setBanners] = useState<Banner[]>(hasSupabaseConfig() ? [] : fallbackBanners);
+  const [banners, setBanners] = useState<Banner[]>(useDemoStoreData() ? fallbackBanners : []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!hasSupabaseConfig()) {
-      setBanners(fallbackBanners);
+      if (useDemoStoreData()) {
+        setBanners(fallbackBanners);
+      } else {
+        handleMissingSupabaseConfig(setError);
+      }
       setLoading(false);
       return;
     }
