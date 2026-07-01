@@ -9,7 +9,8 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useShop } from "@/components/providers/shop-provider";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
-import { megaMenu, products, trendingSearches } from "@/data/store";
+import { megaMenu, trendingSearches } from "@/data/store";
+import { useCatalog } from "@/hooks/use-store-data";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -29,6 +30,7 @@ const mobileNavLinks = [...navLinks, { label: "Wishlist", href: "/wishlist" }];
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { products } = useCatalog();
   const { cartCount, wishlistCount } = useShop();
   const { authReady, isAuthenticated, requestLogin, user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
@@ -98,7 +100,7 @@ export function Navbar() {
       )
       .slice(0, 5)
       .map((product) => product.name);
-  }, [query]);
+  }, [products, query]);
 
   const isTransparent = pathname === "/" && !scrolled && !mobileOpen && !searchOpen;
   const navTone = "text-brand-ivory";

@@ -1,5 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getSupabasePublishableKey, getSupabaseUrl, hasSupabaseEnvConfig } from "@/lib/supabase-env";
+import {
+  getMissingSupabaseEnvMessage,
+  getSupabasePublishableKey,
+  getSupabaseUrl,
+  hasSupabaseEnvConfig
+} from "@/lib/supabase-env";
 
 let browserClient: SupabaseClient | null = null;
 let publicClient: SupabaseClient | null = null;
@@ -17,7 +22,7 @@ export function getSupabaseBrowserClient() {
   const supabasePublishableKey = getSupabasePublishableKey();
 
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
+    throw new Error(getMissingSupabaseEnvMessage() || "Missing Supabase publishable key on Vercel.");
   }
 
   browserClient = createClient(supabaseUrl, supabasePublishableKey, {
@@ -39,7 +44,7 @@ export function getSupabasePublicClient() {
   const supabasePublishableKey = getSupabasePublishableKey();
 
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
+    throw new Error(getMissingSupabaseEnvMessage() || "Missing Supabase publishable key on Vercel.");
   }
 
   publicClient = createClient(supabaseUrl, supabasePublishableKey, {

@@ -54,6 +54,19 @@ npm run dev
 
 Open `http://localhost:3000`
 
+### Email OTP login (Supabase dashboard)
+
+For **Login → Email OTP** to work:
+
+1. **Supabase → Authentication → Providers → Email** — keep Email enabled.
+2. **Supabase → Authentication → URL Configuration**
+   - Site URL: `https://ridaboutique.vercel.app` (or your domain)
+   - Redirect URLs: add `http://localhost:3000/**` and `https://ridaboutique.vercel.app/**`
+3. **Vercel env vars** — `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` must be set for **Production**, then **Redeploy**.
+4. Check `/api/health` on your live site — should show `"ok": true`.
+
+If OTP emails do not arrive, configure **Custom SMTP** under Supabase → Authentication → Email (Supabase free tier has email rate limits).
+
 ## Routes
 
 **Customer (storefront):**
@@ -100,6 +113,8 @@ Git push alone is **not** enough for the live site. After importing from GitHub:
 
 3. **Redeploy** — trigger a new deploy after env vars are saved.
 
-4. **Admin login** — use `/dashboard/login` on your live domain, not `/login`.
+4. **Verify** — open `https://your-domain.vercel.app/api/health`. It should show `"ok": true`. If not, env vars are missing or not scoped to Production.
+
+5. **Admin login** — use `/dashboard/login` on your live domain, not `/login`.
 
 Build command: `npm run build`

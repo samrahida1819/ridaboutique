@@ -1,5 +1,11 @@
+// Public project URL — safe to embed (visible in network requests anyway).
+export const DEFAULT_SUPABASE_URL = "https://zupkwctshyqurixsajmr.supabase.co";
+// Public publishable key — not a secret; RLS protects data. Fallback when Vercel env is misnamed.
+export const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_6_ktwkmKD_TYT7IP2OPT4Q_URgp4-5u";
+
 export function getSupabaseUrl() {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
 }
 
 export function getSupabasePublishableKey() {
@@ -7,7 +13,7 @@ export function getSupabasePublishableKey() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY ||
-    ""
+    DEFAULT_SUPABASE_PUBLISHABLE_KEY
   );
 }
 
@@ -38,5 +44,5 @@ export function getMissingSupabaseEnvMessage() {
     return "";
   }
 
-  return `Missing: ${missing.join(", ")}. Add them in Vercel → Settings → Environment Variables (Production), then Redeploy.`;
+  return `Missing: ${missing.join(", ")}. Vercel → Settings → Environment Variables → Production → Save → Redeploy. Check /api/health on your live site.`;
 }

@@ -7,7 +7,6 @@ import { ProductThumb } from "@/components/commerce/product-thumb";
 import { Button } from "@/components/ui/button";
 import { useShop } from "@/components/providers/shop-provider";
 import { useToast } from "@/components/providers/toast-provider";
-import { useProductRating } from "@/lib/admin-store";
 import { formatCurrency } from "@/lib/utils";
 import type { Product } from "@/types/commerce";
 
@@ -23,12 +22,11 @@ export function ProductCard({ product }: { product: Product }) {
       : activePrice < product.price
         ? product.price
         : null;
-  const rating = useProductRating(product);
   const hasDiscount = compareAtPrice != null && compareAtPrice > activePrice;
   const discountPercent = hasDiscount
     ? Math.round(((compareAtPrice - activePrice) / compareAtPrice) * 100)
     : 0;
-  const showRating = rating.count > 0;
+  const showRating = product.reviewCount > 0 && product.rating > 0;
 
   return (
     <motion.article
@@ -83,8 +81,8 @@ export function ProductCard({ product }: { product: Product }) {
           {showRating ? (
             <div className="mt-1.5 flex items-center gap-1 text-[11px] text-brand-charcoal/55">
               <Star className="size-3 fill-brand-gold text-brand-gold" />
-              <span className="font-semibold text-brand-green">{rating.rating.toFixed(1)}</span>
-              <span>({rating.count})</span>
+              <span className="font-semibold text-brand-green">{product.rating.toFixed(1)}</span>
+              <span>({product.reviewCount})</span>
             </div>
           ) : null}
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:mt-2">

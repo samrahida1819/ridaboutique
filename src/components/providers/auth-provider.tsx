@@ -13,6 +13,7 @@ import type { User } from "@supabase/supabase-js";
 import { LockKeyhole, Mail, UserRound } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { getMissingSupabaseEnvMessage } from "@/lib/supabase-env";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { ProfileRole } from "@/types/commerce";
 
@@ -259,27 +260,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       window.localStorage.removeItem(TESTING_USER_KEY);
 
-      if (!hasSupabaseConfig()) {
-        return { error: "Supabase is not configured for email OTP." };
-      }
-
       const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}/login`;
-      const { error } = await withAuthTimeout(
-        getSupabaseBrowserClient().auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: redirectTo,
-            shouldCreateUser: true
-          }
+      const response = await withAuthTimeout(
+        fetch("/api/auth/email-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "send", email, redirectTo })
         }),
         "Email OTP"
       );
 
-      if (error) {
-        return { error: error.message };
+      const payload = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+
+      if (!response.ok) {
+        return {
+          error:
+            payload?.error ||
+            getMissingSupabaseEnvMessage() ||
+            "Unable to send OTP. Check Supabase env on Vercel and enable Email auth in Supabase → Authentication → Providers."
+        };
       }
 
-      return { message: "OTP sent. Check your email." };
+      return { message: payload?.message || "OTP sent. Check your email." };
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Unable to send OTP." };
     }
@@ -290,33 +292,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         window.localStorage.removeItem(TESTING_USER_KEY);
 
-        if (!hasSupabaseConfig()) {
-          return { error: "Supabase is not configured for email OTP." };
-        }
-
-        const supabase = getSupabaseBrowserClient();
-        const { data, error } = await withAuthTimeout(
-          supabase.auth.verifyOtp({
-            email,
-            token,
-            type: "email"
+        const response = await withAuthTimeout(
+          fetch("/api/auth/email-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "verify", email, token: token.trim() })
           }),
           "OTP verify"
         );
 
-        if (error) {
-          return { error: error.message };
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              error?: string;
+              message?: string;
+              session?: { accessToken: string; refreshToken: string; expiresAt?: number };
+            }
+          | null;
+
+        if (!response.ok) {
+          return {
+            error:
+              payload?.error ||
+              getMissingSupabaseEnvMessage() ||
+              "Unable to verify OTP. Check Supabase env on Vercel and enable Email auth in Supabase → Authentication → Providers."
+          };
         }
 
-        const role = await fetchProfileRole(supabase, data.user?.id);
-        if (role === "admin") {
-          await supabase.auth.signOut().catch(() => null);
-          setUser(null);
-          return { error: ADMIN_ON_CUSTOMER_LOGIN_ERROR };
+        if (!payload?.session) {
+          return { error: "OTP verified but no session was returned." };
+        }
+
+        if (!hasSupabaseConfig()) {
+          return {
+            error:
+              getMissingSupabaseEnvMessage() ||
+              "OTP verified but the browser session could not start. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY on Vercel, then redeploy."
+          };
+        }
+
+        const supabase = getSupabaseBrowserClient();
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: payload.session.accessToken,
+          refresh_token: payload.session.refreshToken
+        });
+
+        if (sessionError) {
+          return { error: sessionError.message };
         }
 
         await refreshProfileInternal();
-        return { message: "OTP verified." };
+        return { message: payload.message || "OTP verified." };
       } catch (error) {
         return { error: error instanceof Error ? error.message : "Unable to verify OTP." };
       }
